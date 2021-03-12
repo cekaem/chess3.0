@@ -20,11 +20,16 @@ enum class Castling {
 };
 
 struct Square {
+  Square() {}
+  Square(const char* square);
   static char INVALID;
 
   bool IsInvalid() const {
     return rank == INVALID || file == INVALID;
   }
+
+  bool operator==(const Square& other) const;
+  bool operator!=(const Square& other) const;
 
   char rank{INVALID};
   char file{INVALID};
@@ -35,6 +40,14 @@ class Board {
   Board(const std::string& fen);
   Board(const Board& other);
   bool IsValid() const;
+  char& at(size_t file, size_t rank) { return squares_[rank][file]; }
+  char at(size_t file, size_t rank) const { return squares_[rank][file]; }
+  char at(const char* square) const;
+  bool CanCastle(Castling c) const { return castlings_[static_cast<size_t>(c)]; }
+  Square EnPassantTargetSquare() const { return en_passant_target_square_; }
+  Square KingPosition(bool white) const;
+  unsigned HalfMoveClock() const { return halfmove_clock_; }
+  unsigned FullMoveNumber() const { return fullmove_number_; }
  
  private:
   size_t HandleFields(const std::string& fen);

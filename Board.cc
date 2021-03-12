@@ -3,6 +3,19 @@
 
 char Square::INVALID = -1;
 
+Square::Square(const char* square) {
+  rank = square[1] - '1';
+  file = square[0] - 'a';
+}
+
+bool Square::operator==(const Square& other) const {
+  return rank == other.rank && file == other.file;
+}
+
+bool Square::operator!=(const Square& other) const {
+  return !(*this == other);
+}
+
 Board::Board(const std::string& fen) {
   size_t index = HandleFields(fen);
   index = HandleSideToMove(fen, index);
@@ -45,7 +58,7 @@ size_t Board::HandleEnPassantTargetSquare(const std::string& fen, size_t index) 
     if (fen[index + 1] < '1' || fen[index + 1] > '8') {
       throw InvalidFENException(fen, "Invalid file in en passant target square");
     }
-    en_passant_target_square_.file = fen[index] - '1';
+    en_passant_target_square_.file = fen[index + 1] - '1';
   } else {
     throw InvalidFENException(fen, "Error in en passant target square section");
   }
@@ -167,4 +180,12 @@ void Board::HandleSingleRank(const std::string& fen, const std::string& rank_str
   if (file != 8) {
     throw InvalidFENException(fen, "Invalid one subsection of piece placement section");
   }
+}
+
+char Board::at(const char* square) const {
+  return squares_[square[1] - '1'][square[0] - 'a'];
+}
+
+Square Board::KingPosition(bool white) const {
+  return white ? white_king_position_ : black_king_position_;
 }
