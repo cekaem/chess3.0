@@ -1,5 +1,7 @@
 #include "Board.h"
+
 #include "utils/Utils.h"
+
 
 char Square::INVALID = -1;
 
@@ -155,7 +157,7 @@ void Board::HandleSingleRank(const std::string& fen, const std::string& rank_str
       file += c - '0';
     } else if (c == 'q' || c == 'Q' || c == 'K' || c == 'k' || c == 'N' || c == 'n' ||
                c == 'R' || c == 'r' || c == 'B' || c == 'b' || c == 'P' || c == 'p') {
-      squares_[rank][file] = c;
+      squares_[file][rank] = c;
       if (c == 'K') {
         if (!white_king_position_.IsInvalid()) {
           throw InvalidFENException(fen, "Found two white kings");
@@ -182,8 +184,94 @@ void Board::HandleSingleRank(const std::string& fen, const std::string& rank_str
   }
 }
 
+void Board::SetKingPosition(bool white, size_t x, size_t y) {
+  if (white) {
+    white_king_position_.file = x;
+    white_king_position_.rank = y;
+  } else {
+    black_king_position_.file = x;
+    black_king_position_.rank = y;
+  }
+}
+
+bool Board::IsKingInCheckHelper(const Square& starting_square, bool white, int x_offset, int y_offset) const {
+  const bool is_diagonal = x_offset != 0 && y_offset != 0;
+  int x = static_cast<int>(starting_square.file);
+  int y = static_cast<int>(starting_square.rank);
+  bool first_iteration = true;
+  while (1) {
+    x += x_offset;
+    y += y_offset;
+    if (x < 0 || x > 7 || y < 0 || y > 7) {
+      return false;
+    }
+    char figure = squares_[x][y];
+    if (figure == '\0') {
+      first_iteration = false;
+      continue;
+    }
+    if (white) {
+      if (first_iteration && figure == 'k') {
+        return true;
+      }
+      if (is_diagonal) {
+        return figure == 'q' || figure == 'b';
+      } else {
+        return figure == 'q' || figure == 'r';
+      }
+    } else {
+      if (first_iteration && figure == 'K') {
+        return true;
+      }
+      if (is_diagonal) {
+        return figure == 'Q' || figure == 'B';
+      } else {
+        return figure == 'Q' || figure == 'R';
+      }
+    }
+    first_iteration = false;
+  }
+  return false;
+}
+
+bool Board::IsKingInCheck(bool white) const {
+  const Square& starting_square = white ? white_king_position_ : black_king_position_;
+  // First check straight lines.
+  if (IsKingInCheckHelper(starting_square, white, 0, 1)) return true;
+  if (IsKingInCheckHelper(starting_square, white, 1, 0)) return true;
+  if (IsKingInCheckHelper(starting_square, white, 0, -1)) return true;
+  if (IsKingInCheckHelper(starting_square, white, -1, 0)) return true;
+  // Now check diagonals.
+  if (IsKingInCheckHelper(starting_square, white, 1, 1)) return true;
+  if (IsKingInCheckHelper(starting_square, white, 1, -1)) return true;
+  if (IsKingInCheckHelper(starting_square, white, -1, 1)) return true;
+  if (IsKingInCheckHelper(starting_square, white, -1, -1)) return true;
+  // Check for checks by knight.
+  int x = starting_square.file;
+  int y = starting_square.rank;
+  char knight = white ? 'n' : 'N';
+  if (IsFigureAtGivenCoordinates(x + 2, y + 1, knight)) return true;
+  if (IsFigureAtGivenCoordinates(x + 2, y - 1, knight)) return true;
+  if (IsFigureAtGivenCoordinates(x + 1, y - 2, knight)) return true;
+  if (IsFigureAtGivenCoordinates(x - 1, y - 2, knight)) return true;
+  if (IsFigureAtGivenCoordinates(x - 2, y + 1, knight)) return true;
+  if (IsFigureAtGivenCoordinates(x - 2, y - 1, knight)) return true;
+  if (IsFigureAtGivenCoordinates(x + 1, y + 2, knight)) return true;
+  if (IsFigureAtGivenCoordinates(x - 1, y + 2, knight)) return true;
+  // Now it's time for pawns.
+  char pawn = white ? 'p' : 'P';
+  int offset = white ? 1 : -1;
+  if (IsFigureAtGivenCoordinates(x + 1, y + offset, pawn)) return true;
+  if (IsFigureAtGivenCoordinates(x - 1, y + offset, pawn)) return true;
+  return false;
+}
+
+bool Board::IsFigureAtGivenCoordinates(int x, int y, char figure) const {
+  return x >= 0 && x <= 7 && y >= 0 && y <=7 && squares_[x][y] == figure;
+}
+
 char Board::at(const char* square) const {
-  return squares_[square[1] - '1'][square[0] - 'a'];
+  return squares_[square[0] - 'a'][square[1] - '1'];
 }
 
 Square Board::KingPosition(bool white) const {

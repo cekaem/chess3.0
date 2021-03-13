@@ -39,15 +39,17 @@ class Board {
  public:
   Board(const std::string& fen);
   Board(const Board& other);
-  bool IsValid() const;
-  char& at(size_t file, size_t rank) { return squares_[rank][file]; }
-  char at(size_t file, size_t rank) const { return squares_[rank][file]; }
+  bool IsKingInCheck(bool white) const;
+  char& at(size_t x, size_t y) { return squares_[x][y]; }
+  char at(size_t x, size_t y) const { return squares_[x][y]; }
   char at(const char* square) const;
   bool CanCastle(Castling c) const { return castlings_[static_cast<size_t>(c)]; }
   Square EnPassantTargetSquare() const { return en_passant_target_square_; }
   Square KingPosition(bool white) const;
   unsigned HalfMoveClock() const { return halfmove_clock_; }
   unsigned FullMoveNumber() const { return fullmove_number_; }
+
+  void SetKingPosition(bool white, size_t x, size_t y);
  
  private:
   size_t HandleFields(const std::string& fen);
@@ -57,6 +59,8 @@ class Board {
   size_t HandleEnPassantTargetSquare(const std::string& fen, size_t index);
   size_t HandleHalfMoveClock(const std::string& fen, size_t index);
   void HandleFullMoveNumber(const std::string& fen, size_t index);
+  bool IsKingInCheckHelper(const Square& starting_square, bool white, int x_offset, int y_offset) const;
+  bool IsFigureAtGivenCoordinates(int x, int y, char figure) const;
 
   std::array<std::array<char, 8>, 8> squares_;
   bool white_to_move_;

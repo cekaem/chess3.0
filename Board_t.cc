@@ -1,6 +1,9 @@
 /* Component tests for class Board */
 
 #include <iostream>
+#include <string>
+#include <tuple>
+#include <vector>
 
 #include "Board.h"
 #include "utils/Test.h"
@@ -23,13 +26,11 @@ TEST_PROCEDURE(Board_fen_constructor_valid_fens) {
     VERIFY_EQUALS(board.at("d1"), 'Q');
     VERIFY_EQUALS(board.at("c2"), 'P');
     VERIFY_EQUALS(board.at("e4"), '\0');
+    VERIFY_EQUALS(board.at("c7"), 'p');
     VERIFY_EQUALS(board.at(2, 6), 'p');
     VERIFY_EQUALS(board.at("g7"), 'p');
     VERIFY_EQUALS(board.at("h8"), 'r');
     VERIFY_EQUALS(board.at("e8"), 'k');
-    VERIFY_EQUALS(board.at(2, 6), 'p');
-    board.at(2, 6) = 'Q';
-    VERIFY_EQUALS(board.at(2, 6), 'Q');
     VERIFY_TRUE(board.CanCastle(Castling::Q));
     VERIFY_TRUE(board.CanCastle(Castling::q));
     VERIFY_TRUE(board.CanCastle(Castling::K));
@@ -39,6 +40,9 @@ TEST_PROCEDURE(Board_fen_constructor_valid_fens) {
     VERIFY_EQUALS(board.KingPosition(false), Square("e8"));
     VERIFY_EQUALS(board.HalfMoveClock(), 0u);
     VERIFY_EQUALS(board.FullMoveNumber(), 1u);
+    VERIFY_EQUALS(board.at(2, 6), 'p');
+    board.at(2, 6) = 'Q';
+    VERIFY_EQUALS(board.at(2, 6), 'Q');
   }
   {
     Board board("6kR/pppq1rB1/n2pr3/3Pp3/1PP3Q1/P3P3/6K1/7R b - - 0 29");
@@ -101,6 +105,42 @@ TEST_PROCEDURE(Board_fen_constructor_invalid_fens) {
     if (exception_was_thrown == false) {
       NOT_REACHED(std::string("Exception InvalidFENException was not thrown for fen \"") + fen + "\"");
     }
+  }
+  TEST_END
+}
+
+TEST_PROCEDURE(Board_IsKingInCheck) {
+  TEST_START
+  const std::vector<std::tuple<std::string, bool, bool>> cases = {
+    {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", false, false},
+    {"6kR/pppq1rB1/n2pr3/3Pp3/1PP3Q1/P3P3/6K1/7R b - - 0 29", false, true},
+    {"2k1R3/8/8/8/8/4K3/8/8 w - - 0 1", false, true},
+    {"8/8/8/8/4k3/8/4K3/8 b - - 0 29", false, false},
+    {"8/8/8/4K3/4k3/8/8/8 b - - 0 29", true, true},
+    {"8/2q5/3K2R1/8/8/6n1/6k1/8 b - - 0 29", true, false},
+    {"5KR1/8/8/8/8/b7/8/6k1 b - - 0 29", true, true},
+    {"5K2/4R3/8/8/8/b7/8/4k3 b - - 0 29", false, true},
+    {"3N4/1pppp3/2k5/8/5K2/7n/8/8 b - - 0 29", true, true},
+    {"8/8/6n1/4K3/8/8/8/5k2 b - - 0 29", true, false},
+    {"8/8/8/4K3/6n1/8/8/5k2 b - - 0 29", true, false},
+    {"8/8/8/4K3/8/5n2/8/5k2 b - - 0 29", true, false},
+    {"8/8/8/4K3/8/3n4/8/5k2 b - - 0 29", true, false},
+    {"8/8/6k1/4N3/8/8/7K/8 b - - 0 29", false, true},
+    {"8/4N3/6k1/8/8/8/7K/8 b - - 0 29", false, true},
+    {"5N2/8/6k1/8/8/8/7K/8 b - - 0 29", false, true},
+    {"7N/8/6k1/8/8/8/7K/8 b - - 0 29", false, true},
+    {"8/8/4k3/4P3/8/3K4/8/8 b - - 0 29", false, false},
+    {"8/8/4k3/8/6P1/3K4/8/8 b - - 0 29", false, false},
+    {"8/8/4k3/3P4/8/3K4/8/8 b - - 0 29", false, true},
+    {"8/8/4k3/5P2/8/3K4/8/8 b - - 0 29", false, true},
+    {"8/8/4k3/8/2p5/3K4/8/8 b - - 0 29", true, false},
+    {"8/8/4k3/8/4p3/3K4/8/8 b - - 0 29", true, false}
+  };
+
+  for (const auto& [fen, white_in_check, black_in_check]: cases) {
+    Board board(fen);
+    VERIFY_EQUALS(board.IsKingInCheck(true), white_in_check) << "failed for fen: " << fen;
+    VERIFY_EQUALS(board.IsKingInCheck(false), black_in_check) << "failed for fen: " << fen;
   }
   TEST_END
 }
