@@ -107,9 +107,9 @@ size_t Board::HandleSideToMove(const std::string& fen, size_t index) {
   if (index + 2 >= fen.length()) {
     throw InvalidFENException(fen, "FEN is too short");
   }
-  if (fen[index] == 'b') {
+  if (fen[index] == 'w') {
     white_to_move_ = true;
-  } else if (fen[index] == 'w') {
+  } else if (fen[index] == 'b') {
     white_to_move_ = false;
   } else {
     throw InvalidFENException(fen, "Wrong information about side to move");

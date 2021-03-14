@@ -38,7 +38,8 @@ struct Square {
 class Board {
  public:
   Board(const std::string& fen);
-  Board(const Board& other);
+  Board(const Board& other) = default;
+  Board(Board&& other) = default;
   bool IsKingInCheck(bool white) const;
   char& at(size_t x, size_t y) { return squares_[x][y]; }
   char at(size_t x, size_t y) const { return squares_[x][y]; }
@@ -48,6 +49,9 @@ class Board {
   Square KingPosition(bool white) const;
   unsigned HalfMoveClock() const { return halfmove_clock_; }
   unsigned FullMoveNumber() const { return fullmove_number_; }
+  bool WhiteToMove() const { return white_to_move_; }
+  void ChangeSideToMove() { white_to_move_ = !white_to_move_; }
+  void IncrementFullMoveNumber() { ++fullmove_number_; }
 
   void SetKingPosition(bool white, size_t x, size_t y);
  
