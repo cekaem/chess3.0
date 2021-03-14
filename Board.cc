@@ -10,6 +10,11 @@ Square::Square(const char* square) {
   file = square[0] - 'a';
 }
 
+void Square::Invalidate() {
+  rank = Square::INVALID;
+  file = Square::INVALID;
+}
+
 bool Square::operator==(const Square& other) const {
   return rank == other.rank && file == other.file;
 }

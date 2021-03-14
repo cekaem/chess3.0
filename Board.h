@@ -22,6 +22,7 @@ enum class Castling {
 struct Square {
   Square() {}
   Square(const char* square);
+  void Invalidate();
   static char INVALID;
 
   bool IsInvalid() const {
@@ -52,6 +53,9 @@ class Board {
   bool WhiteToMove() const { return white_to_move_; }
   void ChangeSideToMove() { white_to_move_ = !white_to_move_; }
   void IncrementFullMoveNumber() { ++fullmove_number_; }
+  void IncrementHalfMoveClock() { ++halfmove_clock_; }
+  void UnsetCanCastle(Castling c) { castlings_[static_cast<size_t>(c)] = false; }
+  void InvalidateEnPassantTargetSquare() { en_passant_target_square_.Invalidate(); }
 
   void SetKingPosition(bool white, size_t x, size_t y);
  
