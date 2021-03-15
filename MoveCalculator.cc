@@ -2,8 +2,6 @@
 
 #include <cassert>
 #include <cctype>
-#include <stdexcept>
-
 
 std::vector<Move> MoveCalculator::CalculateAllMoves(const Board& board) {
   board_ = &board;
@@ -19,6 +17,7 @@ std::vector<Move> MoveCalculator::CalculateAllMoves(const Board& board) {
         case 'P':
         case 'p':
           HandlePawnMoves(x, y);
+          break;
         case 'B':
         case 'b':
           HandleBishopMoves(x, y);
@@ -40,7 +39,7 @@ std::vector<Move> MoveCalculator::CalculateAllMoves(const Board& board) {
           HandleKingMoves(x, y);
           break;
         default:
-          throw std::runtime_error("MoveCalculator::CalculateAllMoves: unexpected char");
+          assert(!"Unexpeted char");
           break;
       }
     }
@@ -54,12 +53,16 @@ void MoveCalculator::CheckNewSquareAndMaybeAddMove(size_t old_x, size_t old_y, i
   }
 }
 
-void MoveCalculator::MaybeAddMove(size_t old_x, size_t old_y, size_t new_x, size_t new_y) {
+void MoveCalculator::MaybeAddMove(size_t old_x, size_t old_y, size_t new_x, size_t new_y, bool promotion) {
+  const char captured_figure = board_->at(new_x, new_y);
+  if (captured_figure && !!isupper(captured_figure) == board_->WhiteToMove()) {
+    return;
+  }
+  const bool white_to_move = board_->WhiteToMove();
   Board copy = *board_;
   const char figure = copy.at(old_x, old_y);
-  const char bitten_figure = copy.at(new_x, new_y);
   assert(figure);
-  assert(bitten_figure != 'K' && bitten_figure != 'k');
+  assert(captured_figure != 'K' && captured_figure != 'k');
   copy.at(old_x, old_y) = '\0';
   copy.at(new_x, new_y) = figure;
   if (figure == 'K') {
@@ -67,18 +70,29 @@ void MoveCalculator::MaybeAddMove(size_t old_x, size_t old_y, size_t new_x, size
   } else if (figure == 'k') {
     copy.SetKingPosition(false, new_x, new_y);
   }
-  if (copy.IsKingInCheck(copy.WhiteToMove())) {
+  if (copy.IsKingInCheck(white_to_move)) {
     return;
   }
   copy.ChangeSideToMove();
-  if (copy.WhiteToMove()) {
+  if (!white_to_move) {
     copy.IncrementFullMoveNumber();
   }
   copy.InvalidateEnPassantTargetSquare();
-  if (!bitten_figure) {
+  if (!captured_figure) {
     copy.IncrementHalfMoveClock();
   }
-  moves_.push_back({std::move(copy), old_x, old_y, new_x, new_y, '\0', !!bitten_figure});
+  if (promotion) {
+    auto AddPromotionMove = [this, &copy, old_x, old_y, new_x, new_y, captured_figure](char promoted_to) {
+      copy.at(new_x, new_y) = promoted_to;
+      moves_.push_back({copy, old_x, old_y, new_x, new_y, promoted_to, !!captured_figure});
+    };
+    AddPromotionMove(white_to_move ? 'Q' : 'q');
+    AddPromotionMove(white_to_move ? 'R' : 'r');
+    AddPromotionMove(white_to_move ? 'N' : 'n');
+    AddPromotionMove(white_to_move ? 'B' : 'b');
+  } else {
+    moves_.push_back({std::move(copy), old_x, old_y, new_x, new_y, 0x0, !!captured_figure});
+  }
 }
 
 void MoveCalculator::HandleMovesHelper(size_t x, size_t y, int x_offset, int y_offset) {
@@ -90,18 +104,38 @@ void MoveCalculator::HandleMovesHelper(size_t x, size_t y, int x_offset, int y_o
     if (new_x < 0 || new_x > 7 || new_y < 0 || new_y > 7) {
       break;
     }
-    if (!board_->at(new_x, new_y)) {
-      MaybeAddMove(x, y, new_x, new_y);
-    } else {
-      if (!!isupper(board_->at(new_x, new_y) != board_->WhiteToMove())) {
-        MaybeAddMove(x, y, new_x, new_y);
-      }
+    MaybeAddMove(x, y, new_x, new_y);
+    if (board_->at(new_x, new_y)) {
       break;
     }
   }
 }
 
 void MoveCalculator::HandlePawnMoves(size_t x, size_t y) {
+  assert(y != 0u && y != 7u);
+  const bool white_move = board_->WhiteToMove();
+  const size_t starting_rank = white_move ? 1u : 6u;
+  const bool promotion = white_move ? (y == 6u) : (y == 1u);
+  const int offset = white_move ? 1 : -1;
+  if (!board_->at(x, y + offset)) {
+    MaybeAddMove(x, y, x, y + offset, promotion);
+    if (y == starting_rank && !board_->at(x, y + 2 * offset)) {
+      MaybeAddMove(x, y, x, y + 2 * offset);
+    }
+  }
+  auto HandlePawnCaptureAtSquare = [this, x, y, promotion](size_t new_x, size_t new_y) {
+    bool is_en_passant_square = board_->EnPassantTargetSquare().file == new_x &&
+                                board_->EnPassantTargetSquare().rank == new_y;
+    if (board_->at(new_x, new_y) || is_en_passant_square) {
+      MaybeAddMove(x, y, new_x, new_y, promotion);
+    }
+  };
+  if (x < 7u) {
+    HandlePawnCaptureAtSquare(x + 1u, y + offset);
+  }
+  if (x > 0u) {
+    HandlePawnCaptureAtSquare(x - 1u, y + offset);
+  }
 }
 
 void MoveCalculator::HandleKnightMoves(size_t x, size_t y) {
@@ -172,44 +206,53 @@ void MoveCalculator::AddCastling(bool white_king, bool king_side) {
   moves_.push_back({std::move(copy), king_old_x, rank, king_new_x, rank, '\0', false});
 }
 
-void MoveCalculator::HandleCastling(size_t x, size_t y, bool king_side) {
-  const bool white_to_move = board_->WhiteToMove();
-  if (white_to_move) {
+bool MoveCalculator::CanCastle(bool white_king, bool king_side) const {
+  if (white_king) {
     if (!board_->CanCastle(king_side ? Castling::K : Castling::Q)) {
-      return;
+      return false;
     }
   } else {
     if (!board_->CanCastle(king_side ? Castling::k : Castling::q)) {
-      return;
-    }
-  }
-  const size_t rank = white_to_move ? 0u : 7u;
-  const size_t rook_x = king_side ? 7u : 0u;
-  if (board_->at(rook_x, rank) != (white_to_move ? 'R' : 'r')) {
-    return;
-  }
-
-  auto SquareOK = [this, white_to_move, rank](size_t new_x) -> bool {
-    if (board_->at(new_x, rank)) {
       return false;
     }
-    Board copy = *board_;
-    assert(copy.at(4u, rank) == (white_to_move ? 'K' : 'k'));
-    copy.at(4u, rank) = '\0';  // 4 == king's current x
-    copy.at(new_x, rank) = white_to_move ? 'K' : 'k';
-    copy.SetKingPosition(white_to_move, new_x, rank);
-    copy.ChangeSideToMove();
-    return !copy.IsKingInCheck(white_to_move);
-  };
-
-  int x_offset = king_side ? 1 : -1;
-  if (SquareOK(x + x_offset) && SquareOK(x + 2 * x_offset)) {
-    AddCastling(white_to_move, king_side);
   }
+  const size_t rank = white_king ? 0u : 7u;
+  const size_t rook_x = king_side ? 7u : 0u;
+  if (board_->at(rook_x, rank) != (white_king ? 'R' : 'r')) {
+    return false;
+  }
+
+  const size_t king_staring_x = 4u;
+  const int offset = king_side ? 1 : -1;
+  const size_t first_x = king_staring_x + offset;
+  const size_t second_x = first_x + offset;
+  if (board_->at(first_x, rank) || board_->at(second_x, rank)) {
+    return false;
+  }
+  if (board_->IsKingInCheck(white_king)) {
+    return false;
+  }
+  Board copy = *board_;
+  assert(copy.at(king_staring_x, rank) == (white_king ? 'K' : 'k'));
+  copy.at(king_staring_x, rank) = '\0';
+  copy.at(first_x, rank) = white_king ? 'K' : 'k';
+  copy.SetKingPosition(white_king, first_x, rank);
+  copy.ChangeSideToMove();
+  if (copy.IsKingInCheck(white_king)) {
+    return false;
+  }
+  copy.at(first_x, rank) = '\0';
+  copy.at(second_x, rank) = white_king ? 'K' : 'k';
+  copy.SetKingPosition(white_king, second_x, rank);
+  if (copy.IsKingInCheck(white_king)) {
+    return false;
+  }
+  return true;
 }
 
 void MoveCalculator::HandleCastlings(size_t x, size_t y) {
-  if (board_->WhiteToMove()) {
+  const bool white_to_move = board_->WhiteToMove();
+  if (white_to_move) {
     if (x != 4u || y != 0) {
       return;
     }
@@ -218,6 +261,10 @@ void MoveCalculator::HandleCastlings(size_t x, size_t y) {
       return;
     }
   }
-  HandleCastling(x, y, true);
-  HandleCastling(x, y, false);
+  if (CanCastle(white_to_move, true)) {
+    AddCastling(white_to_move, true);
+  }
+  if (CanCastle(white_to_move, false)) {
+    AddCastling(white_to_move, false);
+  }
 }

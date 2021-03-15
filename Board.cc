@@ -3,7 +3,7 @@
 #include "utils/Utils.h"
 
 
-char Square::INVALID = -1;
+size_t Square::INVALID = 9;
 
 Square::Square(const char* square) {
   rank = square[1] - '1';

@@ -23,7 +23,7 @@ struct Square {
   Square() {}
   Square(const char* square);
   void Invalidate();
-  static char INVALID;
+  static size_t INVALID;
 
   bool IsInvalid() const {
     return rank == INVALID || file == INVALID;
@@ -32,8 +32,8 @@ struct Square {
   bool operator==(const Square& other) const;
   bool operator!=(const Square& other) const;
 
-  char rank{INVALID};
-  char file{INVALID};
+  size_t rank{INVALID};
+  size_t file{INVALID};
 };
 
 class Board {
