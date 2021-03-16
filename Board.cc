@@ -6,17 +6,17 @@
 size_t Square::INVALID = 9;
 
 Square::Square(const char* square) {
-  rank = square[1] - '1';
-  file = square[0] - 'a';
+  x = square[0] - 'a';
+  y = square[1] - '1';
 }
 
 void Square::Invalidate() {
-  rank = Square::INVALID;
-  file = Square::INVALID;
+  x = Square::INVALID;
+  y = Square::INVALID;
 }
 
 bool Square::operator==(const Square& other) const {
-  return rank == other.rank && file == other.file;
+  return x == other.x && y == other.y;
 }
 
 bool Square::operator!=(const Square& other) const {
@@ -61,11 +61,11 @@ size_t Board::HandleEnPassantTargetSquare(const std::string& fen, size_t index) 
     if (fen[index] < 'a' || fen[index] > 'h') {
       throw InvalidFENException(fen, "Invalid rank in en passant target square");
     }
-    en_passant_target_square_.rank = fen[index] - 'a';
+    en_passant_target_square_.x = fen[index] - 'a';
     if (fen[index + 1] < '1' || fen[index + 1] > '8') {
       throw InvalidFENException(fen, "Invalid file in en passant target square");
     }
-    en_passant_target_square_.file = fen[index + 1] - '1';
+    en_passant_target_square_.y = fen[index + 1] - '1';
   } else {
     throw InvalidFENException(fen, "Error in en passant target square section");
   }
@@ -167,14 +167,14 @@ void Board::HandleSingleRank(const std::string& fen, const std::string& rank_str
         if (!white_king_position_.IsInvalid()) {
           throw InvalidFENException(fen, "Found two white kings");
         }
-        white_king_position_.rank = rank;
-        white_king_position_.file = file;
+        white_king_position_.x = file;
+        white_king_position_.y = rank;
       } else if (c == 'k') {
         if (!black_king_position_.IsInvalid()) {
           throw InvalidFENException(fen, "Found two black kings");
         }
-        black_king_position_.rank = rank;
-        black_king_position_.file = file;
+        black_king_position_.x = file;
+        black_king_position_.y = rank;
       }
       ++file;
     } else {
@@ -191,18 +191,18 @@ void Board::HandleSingleRank(const std::string& fen, const std::string& rank_str
 
 void Board::SetKingPosition(bool white, size_t x, size_t y) {
   if (white) {
-    white_king_position_.file = x;
-    white_king_position_.rank = y;
+    white_king_position_.x = x;
+    white_king_position_.y = y;
   } else {
-    black_king_position_.file = x;
-    black_king_position_.rank = y;
+    black_king_position_.x = x;
+    black_king_position_.y = y;
   }
 }
 
 bool Board::IsKingInCheckHelper(const Square& starting_square, bool white, int x_offset, int y_offset) const {
   const bool is_diagonal = x_offset != 0 && y_offset != 0;
-  int x = static_cast<int>(starting_square.file);
-  int y = static_cast<int>(starting_square.rank);
+  int x = static_cast<int>(starting_square.x);
+  int y = static_cast<int>(starting_square.y);
   bool first_iteration = true;
   while (1) {
     x += x_offset;
@@ -252,8 +252,8 @@ bool Board::IsKingInCheck(bool white) const {
   if (IsKingInCheckHelper(starting_square, white, -1, 1)) return true;
   if (IsKingInCheckHelper(starting_square, white, -1, -1)) return true;
   // Check for checks by knight.
-  int x = starting_square.file;
-  int y = starting_square.rank;
+  int x = starting_square.x;
+  int y = starting_square.y;
   char knight = white ? 'n' : 'N';
   if (IsFigureAtGivenCoordinates(x + 2, y + 1, knight)) return true;
   if (IsFigureAtGivenCoordinates(x + 2, y - 1, knight)) return true;

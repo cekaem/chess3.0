@@ -11,7 +11,7 @@
 namespace {
 
 std::ostream& operator<<(std::ostream& os, const Square& square) {
-  os << static_cast<char>(square.file + 'a') << static_cast<char>(square.rank + '1');
+  os << static_cast<char>(square.x + 'a') << static_cast<char>(square.y + '1');
   return os;
 }
 
@@ -138,6 +138,15 @@ TEST_PROCEDURE(Board_CopyConstructor) {
     VERIFY_EQUALS(board.HalfMoveClock(), copy.HalfMoveClock()) << "failed for fen: " << fen;
     VERIFY_EQUALS(board.FullMoveNumber(), copy.FullMoveNumber()) << "failed for fen: " << fen;
   }
+  TEST_END
+}
+
+TEST_PROCEDURE(Board_en_passant_square) {
+  TEST_START
+  Board board("8/8/8/3k4/8/6K1/8/8 b - b3 0 17");
+  Square en_passant_square = board.EnPassantTargetSquare();
+  VERIFY_EQUALS(en_passant_square.x, 1u);
+  VERIFY_EQUALS(en_passant_square.y, 2u);
   TEST_END
 }
 

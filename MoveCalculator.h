@@ -6,18 +6,18 @@
 #include "Board.h"
 
 struct Move {
- Move(Board&& b, size_t ox, size_t oy, size_t nx, size_t ny, char p, bool fc) :
-   board(std::move(b)), old_x(ox), old_y(oy), new_x(nx), new_y(ny), promotion_to(p), figure_captured(fc) {}
- Move(Board& b, size_t ox, size_t oy, size_t nx, size_t ny, char p, bool fc) :
-   board(b), old_x(ox), old_y(oy), new_x(nx), new_y(ny), promotion_to(p), figure_captured(fc) {}
+  Move(Board&& b, size_t ox, size_t oy, size_t nx, size_t ny, char p, bool fc) :
+    board(std::move(b)), old_x(ox), old_y(oy), new_x(nx), new_y(ny), promotion_to(p), figure_captured(fc) {}
+  Move(Board& b, size_t ox, size_t oy, size_t nx, size_t ny, char p, bool fc) :
+    board(b), old_x(ox), old_y(oy), new_x(nx), new_y(ny), promotion_to(p), figure_captured(fc) {}
 
- const Board board;
- const size_t old_x;
- const size_t old_y;
- const size_t new_x;
- const size_t new_y;
- const char promotion_to{0x0};
- const bool figure_captured{false};
+  const Board board;
+  const size_t old_x;
+  const size_t old_y;
+  const size_t new_x;
+  const size_t new_y;
+  const char promotion_to{0x0};
+  const bool figure_captured{false};
 };
 
 class MoveCalculator {

@@ -54,17 +54,27 @@ void MoveCalculator::CheckNewSquareAndMaybeAddMove(size_t old_x, size_t old_y, i
 }
 
 void MoveCalculator::MaybeAddMove(size_t old_x, size_t old_y, size_t new_x, size_t new_y, bool promotion) {
-  const char captured_figure = board_->at(new_x, new_y);
+  char captured_figure = board_->at(new_x, new_y);
   if (captured_figure && !!isupper(captured_figure) == board_->WhiteToMove()) {
     return;
   }
+  const char figure = board_->at(old_x, old_y);
   const bool white_to_move = board_->WhiteToMove();
+  const Square en_passant_target_square = board_->EnPassantTargetSquare();
+  const bool en_passant_capture =
+      en_passant_target_square.x == new_x &&
+      en_passant_target_square.y == new_y &&
+      figure == (white_to_move ? 'P' : 'p');
   Board copy = *board_;
-  const char figure = copy.at(old_x, old_y);
   assert(figure);
   assert(captured_figure != 'K' && captured_figure != 'k');
   copy.at(old_x, old_y) = '\0';
   copy.at(new_x, new_y) = figure;
+  if (en_passant_capture) {
+    captured_figure = white_to_move ? 'p' : 'P';
+    const size_t captured_pawn_y = white_to_move ? 4u : 3u;
+    copy.at(en_passant_target_square.x, captured_pawn_y) = 0x0;
+  }
   if (figure == 'K') {
     copy.SetKingPosition(true, new_x, new_y);
   } else if (figure == 'k') {
@@ -78,7 +88,9 @@ void MoveCalculator::MaybeAddMove(size_t old_x, size_t old_y, size_t new_x, size
     copy.IncrementFullMoveNumber();
   }
   copy.InvalidateEnPassantTargetSquare();
-  if (!captured_figure) {
+  if (captured_figure || figure == 'P' || figure == 'p') {
+    copy.ResetHalfMoveClock();
+  } else {
     copy.IncrementHalfMoveClock();
   }
   if (promotion) {
@@ -124,8 +136,8 @@ void MoveCalculator::HandlePawnMoves(size_t x, size_t y) {
     }
   }
   auto HandlePawnCaptureAtSquare = [this, x, y, promotion](size_t new_x, size_t new_y) {
-    bool is_en_passant_square = board_->EnPassantTargetSquare().file == new_x &&
-                                board_->EnPassantTargetSquare().rank == new_y;
+    bool is_en_passant_square = board_->EnPassantTargetSquare().x == new_x &&
+                                board_->EnPassantTargetSquare().y == new_y;
     if (board_->at(new_x, new_y) || is_en_passant_square) {
       MaybeAddMove(x, y, new_x, new_y, promotion);
     }

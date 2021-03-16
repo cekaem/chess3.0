@@ -26,14 +26,14 @@ struct Square {
   static size_t INVALID;
 
   bool IsInvalid() const {
-    return rank == INVALID || file == INVALID;
+    return x == INVALID || y == INVALID;
   }
 
   bool operator==(const Square& other) const;
   bool operator!=(const Square& other) const;
 
-  size_t rank{INVALID};
-  size_t file{INVALID};
+  size_t x{INVALID};
+  size_t y{INVALID};
 };
 
 class Board {
@@ -53,6 +53,7 @@ class Board {
   bool WhiteToMove() const { return white_to_move_; }
   void ChangeSideToMove() { white_to_move_ = !white_to_move_; }
   void IncrementFullMoveNumber() { ++fullmove_number_; }
+  void ResetHalfMoveClock() { halfmove_clock_ = 0u; }
   void IncrementHalfMoveClock() { ++halfmove_clock_; }
   void UnsetCanCastle(Castling c) { castlings_[static_cast<size_t>(c)] = false; }
   void InvalidateEnPassantTargetSquare() { en_passant_target_square_.Invalidate(); }
