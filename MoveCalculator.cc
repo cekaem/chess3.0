@@ -3,6 +3,11 @@
 #include <cassert>
 #include <cctype>
 
+std::vector<Move> MoveCalculator::CalculateAllMoves(const std::string& fen) {
+  Board board(fen);
+  return CalculateAllMoves(board);
+}
+
 std::vector<Move> MoveCalculator::CalculateAllMoves(const Board& board) {
   board_ = &board;
   moves_.clear();
@@ -53,6 +58,28 @@ void MoveCalculator::CheckNewSquareAndMaybeAddMove(size_t old_x, size_t old_y, i
   }
 }
 
+void MoveCalculator::UpdateCastlings(Board& copy, char figure, size_t old_x, size_t old_y) const {
+  if (figure == 'K') {
+    copy.UnsetCanCastle(Castling::K);
+    copy.UnsetCanCastle(Castling::Q);
+  } else if (figure == 'k') {
+    copy.UnsetCanCastle(Castling::k);
+    copy.UnsetCanCastle(Castling::q);
+  } else if (figure == 'R') {
+    if (old_x == 0u && old_y == 0u) {
+      copy.UnsetCanCastle(Castling::Q);
+    } else if (old_x == 7u && old_y == 0u) {
+      copy.UnsetCanCastle(Castling::K);
+    }
+  } else if (figure == 'r') {
+    if (old_x == 0u && old_y == 7u) {
+      copy.UnsetCanCastle(Castling::q);
+    } else if (old_x == 7u && old_y == 7u) {
+      copy.UnsetCanCastle(Castling::k);
+    }
+  }
+}
+
 void MoveCalculator::MaybeAddMove(size_t old_x, size_t old_y, size_t new_x, size_t new_y, bool promotion) {
   char captured_figure = board_->at(new_x, new_y);
   if (captured_figure && !!isupper(captured_figure) == board_->WhiteToMove()) {
@@ -93,6 +120,7 @@ void MoveCalculator::MaybeAddMove(size_t old_x, size_t old_y, size_t new_x, size
   } else {
     copy.IncrementHalfMoveClock();
   }
+  UpdateCastlings(copy, figure, old_x, old_y);
   if (promotion) {
     auto AddPromotionMove = [this, &copy, old_x, old_y, new_x, new_y, captured_figure](char promoted_to) {
       copy.at(new_x, new_y) = promoted_to;

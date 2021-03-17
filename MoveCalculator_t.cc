@@ -5,6 +5,7 @@
 #include <cassert>
 #include <iostream>
 #include <sstream>
+#include <utility>
 
 
 namespace {
@@ -26,6 +27,12 @@ std::ostream& operator<<(std::ostream& os, const std::vector<Move>& moves) {
 }
 
 #pragma GCC diagnostic pop
+
+#define COORDINATES_FROM_STRING(str)\
+  const size_t old_x = str[0] - 'a'; \
+  const size_t old_y = str[1] - '1'; \
+  const size_t new_x = str[2] - 'a'; \
+  const size_t new_y = str[3] - '1';
 
 bool operator==(const Move& m1, const Move& m2) {
   return m1.old_x == m2.old_x &&
@@ -52,10 +59,7 @@ bool MovesContainMove(
     const std::string& move,
     bool figure_captured = false,
     char promotion_to = 0x0) {
-  const size_t old_x = move[0] - 'a';
-  const size_t old_y = move[1] - '1';
-  const size_t new_x = move[2] - 'a';
-  const size_t new_y = move[3] - '1';
+  COORDINATES_FROM_STRING(move);
   for (const auto& move: moves) {
     if (move.old_x == old_x && move.old_y == old_y &&
         move.new_x == new_x && move.new_y == new_y &&
@@ -123,20 +127,22 @@ void VerifyMoves(const std::vector<Move>& moves, const std::string& list) {
   }
 }
 
-size_t HalfMoveClockForMove(const std::vector<Move>& moves, const std::string& move_str) {
-  const size_t old_x = move_str[0] - 'a';
-  const size_t old_y = move_str[1] - '1';
-  const size_t new_x = move_str[2] - 'a';
-  const size_t new_y = move_str[3] - '1';
-
-  for (const auto& move: moves) {
-    if (move.old_x == old_x && move.new_x == new_x &&
-        move.old_y == old_y && move.new_y == new_y) {
-      return move.board.HalfMoveClock();
+Board FindBoardForMove(const std::vector<Move>& moves, const std::string move) {
+  COORDINATES_FROM_STRING(move);
+  char promotion_to = 0x0;
+  if (move.length() == 5u) {
+    promotion_to = move[4u];
+  }
+  for (const auto& m: moves) {
+    if (m.old_x == old_x && m.old_y == old_y &&
+        m.new_x == new_x && m.new_y == new_y &&
+        m.promotion_to == promotion_to) {
+      return m.board;
     }
   }
-  NOT_REACHED(move_str);
-  return 1000u;
+  NOT_REACHED(move);
+  Board dummy_board("");
+  return dummy_board;
 }
 
 // =========================================================================
@@ -371,29 +377,101 @@ TEST_PROCEDURE(MoveCalculator_king_moves) {
 
 TEST_PROCEDURE(MoveCalculator_half_move_clock) {
   TEST_START
-  {
-    Board board("6R1/8/8/4rPp1/3K4/7k/8/8 w - g6 10 7");
+  const std::vector<std::pair<std::string, std::string>> cases = {
+    {"6R1/8/8/4rPp1/3K4/7k/8/8 w - g6 10 7", "d4e5f5f6g8g5f5g6"},
+    {"6R1/8/8/4rPp1/3K4/7k/8/8 b - g6 16 8", "e5f5g5g4"},
+    {"8/P1N5/4pk2/8/8/3q4/3K3P/8 w - g6 20 7", "a7a8c7e6d2d3h2h3h2h4"},
+    {"n3q3/7p/6p1/k7/Pp6/8/5K2/1b6 b - a3 1 7", "a5a4g6g5h7h6h7h5b4b3b4a3e8a4"},
+    {"r3k2r/8/8/8/8/8/8/R3K2R w KQkq a3 5 70", "a1a8h1h8"}
+  };
+
+  auto IsMoveInList = [](const Move& move, const std::string& moves) -> bool {
+    for (size_t i = 0; i < moves.length(); i += 4) {
+      const std::string move_str = moves.substr(i, 4);
+      COORDINATES_FROM_STRING(move_str);
+      if (old_x == move.old_x && old_y == move.old_y &&
+          new_x == move.new_x && new_y == move.new_y) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  for (const auto&[fen, moves_reseting_hmc]: cases) {
+    Board board(fen);
+    const size_t incremented_hmc = board.HalfMoveClock() + 1u;
     MoveCalculator calculator;
     auto moves = calculator.CalculateAllMoves(board);
-    VERIFY_EQUALS(HalfMoveClockForMove(moves, "g8g7"), 11u);
-    VERIFY_EQUALS(HalfMoveClockForMove(moves, "g8g5"), 0u);
-    VERIFY_EQUALS(HalfMoveClockForMove(moves, "d4e5"), 0u);
-    VERIFY_EQUALS(HalfMoveClockForMove(moves, "d4c3"), 11u);
-    VERIFY_EQUALS(HalfMoveClockForMove(moves, "f5f6"), 0u);
+    for (const auto& move: moves) {
+      size_t expected_hmc = 0u;
+      if (!IsMoveInList(move, moves_reseting_hmc)) {
+        expected_hmc = incremented_hmc;
+      }
+      VERIFY_EQUALS(move.board.HalfMoveClock(), expected_hmc) << "failed for fen \"" << fen << "\" and move " << move;
+    }
   }
-  NOT_REACHED("MORE TEST CASES");
   TEST_END
 }
 
 TEST_PROCEDURE(MoveCalculator_castlings_reset) {
   TEST_START
-  NOT_REACHED("TODO");
+  const std::vector<std::tuple<std::string, std::string, bool, bool, bool, bool>> cases = {
+    {"r3k2r/8/8/8/8/8/8/R3K2R w KQkq a6 0 7", "e1g1", false, false, true, true},
+    {"r3k2r/8/8/8/8/8/8/R3K2R w KQkq a6 0 7", "e1c1", false, false, true, true},
+    {"r3k2r/8/8/8/8/8/8/R3K2R b KQkq a6 0 7", "e8g8", true, true, false, false},
+    {"r3k2r/8/8/8/8/8/8/R3K2R b KQkq a6 0 7", "e8c8", true, true, false, false},
+    {"r3k2r/8/8/8/8/8/8/R3K2R w KQkq a6 0 7", "e1f1", false, false, true, true},
+    {"r3k2r/8/8/8/8/8/8/R3K2R w KQkq a6 0 7", "h1h2", false, true, true, true},
+    {"r3k2r/8/8/8/8/8/8/R3K2R w KQkq a6 0 7", "a1b1", true, false, true, true},
+    {"r3k2r/8/8/8/8/8/8/R3K2R b KQkq a6 0 7", "e8e7", true, true, false, false},
+    {"r3k2r/8/8/8/8/8/8/R3K2R b KQkq a6 0 7", "a8a5", true, true, true, false},
+    {"r3k2r/8/8/8/8/8/8/R3K2R b KQkq a6 0 7", "h8f8", true, true, false, true},
+    {"r3k2r/8/8/8/8/5Q2/8/R3K2R w KQkq a6 0 7", "f3f4", true, true, true, true},
+    {"r3k2r/p7/8/8/8/8/8/R3K2R b KQkq a3 0 7", "a7a5", true, true, true, true},
+    {"r3k2r/8/8/8/3R4/8/8/R3K2R w KQkq a6 0 7", "d4e4", true, true, true, true}
+  };
+
+  MoveCalculator calculator;
+
+  for (const auto&[fen, move, K, Q, k, q]: cases) {
+    auto moves = calculator.CalculateAllMoves(fen);
+    Board board_after_move = FindBoardForMove(moves, move);
+    VERIFY_EQUALS(board_after_move.CanCastle(Castling::K), K) << "failed for fen " << fen;
+    VERIFY_EQUALS(board_after_move.CanCastle(Castling::Q), Q) << "failed for fen " << fen;
+    VERIFY_EQUALS(board_after_move.CanCastle(Castling::k), k) << "failed for fen " << fen;
+    VERIFY_EQUALS(board_after_move.CanCastle(Castling::q), q) << "failed for fen " << fen;
+  }
   TEST_END
 }
 
 TEST_PROCEDURE(MoveCalculator_figures_placement_after_move) {
   TEST_START
-  NOT_REACHED("TODO");
+  const std::vector<std::tuple<std::string, std::string, std::string>> cases = {
+    {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", "b1c3", "rnbqkbnr/pppppppp/8/8/8/2N5/PPPPPPPP/R1BQKBNR"},
+    {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", "e2e4", "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR"},
+    {"8/6P1/8/8/2K5/5k2/8/8 w - - 0 1", "g7g8Q", "6Q1/8/8/8/2K5/5k2/8/8"},
+    {"8/6P1/8/8/2K5/5k2/8/8 w - - 0 1", "g7g8N", "6N1/8/8/8/2K5/5k2/8/8"},
+    {"8/8/8/3K1Pp1/8/8/7k/8 w - g6 0 1", "f5g6", "8/8/6P1/3K4/8/8/7k/8"},
+    {"r3k2r/8/8/8/8/8/8/R3K2R b KQkq - 0 1", "e8g8", "r4rk1/8/8/8/8/8/8/R3K2R"},
+    {"r3k2r/8/8/8/8/8/8/R3K2R b KQkq - 0 1", "e8c8", "2kr3r/8/8/8/8/8/8/R3K2R"},
+    {"3k1K2/8/8/8/8/8/5p2/6Q1 b - - 0 1", "f2g1r", "3k1K2/8/8/8/8/8/8/6r1"},
+    {"8/6k1/2n5/8/3K4/8/6B1/8 w - - 0 1", "g2c6", "8/6k1/2B5/8/3K4/8/8/8"}
+  };
+
+  MoveCalculator calculator;
+
+  for (const auto&[fen, move, placement_after_move]: cases) {
+    auto moves = calculator.CalculateAllMoves(fen);
+    Board board_after_move = FindBoardForMove(moves, move);
+    const std::string new_fen = placement_after_move + " w - - 0 1";
+    Board expected_board(new_fen);
+    for (size_t x = 0; x < 8u; ++x) {
+      for (size_t y = 0; y < 8u; ++y) {
+        VERIFY_EQUALS(board_after_move.at(x, y), expected_board.at(x, y)) \
+          << "failed for fen \"" << fen << "\" at (" << x << ", " << y << ")";
+      }
+    }
+  }
   TEST_END
 }
 

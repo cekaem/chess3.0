@@ -23,6 +23,7 @@ struct Move {
 class MoveCalculator {
  public:
   std::vector<Move> CalculateAllMoves(const Board& board);
+  std::vector<Move> CalculateAllMoves(const std::string& fen);
 
  private:
   void HandlePawnMoves(size_t x, size_t y);
@@ -37,6 +38,7 @@ class MoveCalculator {
   void CheckNewSquareAndMaybeAddMove(size_t old_x, size_t old_y, int new_x, int new_y);
   void MaybeAddMove(size_t old_x, size_t old_y, size_t new_x, size_t new_y, bool promotion = false);
   void HandleMovesHelper(size_t x, size_t y, int x_offset, int y_offset);
+  void UpdateCastlings(Board& copy, char figure, size_t old_x, size_t old_y) const;
 
   const Board* board_{nullptr};
   std::vector<Move> moves_;
