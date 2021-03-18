@@ -5,7 +5,7 @@
 
 size_t Square::INVALID = 9;
 
-Square::Square(const char* square) {
+Square::Square(const std::string& square) {
   x = square[0] - 'a';
   y = square[1] - '1';
 }
@@ -21,6 +21,15 @@ bool Square::operator==(const Square& other) const {
 
 bool Square::operator!=(const Square& other) const {
   return !(*this == other);
+}
+
+std::ostream& operator<<(std::ostream& os, const Square& square) {
+  if (square.IsInvalid()) {
+    os << "INVALID_SQUARE";
+  } else {
+  os << static_cast<char>(square.x + 'a') << static_cast<char>(square.y + '1');
+  }
+  return os;
 }
 
 Board::Board(const std::string& fen) {

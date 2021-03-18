@@ -10,14 +10,6 @@
 
 namespace {
 
-std::ostream& operator<<(std::ostream& os, const Square& square) {
-  os << static_cast<char>(square.x + 'a') << static_cast<char>(square.y + '1');
-  return os;
-}
-
-
-//================================================================================
-
 TEST_PROCEDURE(Board_fen_constructor_valid_fens) {
   TEST_START
   {

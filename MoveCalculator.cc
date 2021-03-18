@@ -80,6 +80,16 @@ void MoveCalculator::UpdateCastlings(Board& copy, char figure, size_t old_x, siz
   }
 }
 
+void MoveCalculator::UpdateEnPassantTargetSquare(Board& copy, char figure, size_t old_x, size_t old_y, size_t new_y) const {
+  if (figure == 'P' && old_y == 1u && new_y == 3u) {
+    copy.SetEnPassantTargetSquare(Square(old_x, 2u));
+  } else if (figure == 'p' && old_y == 6u && new_y == 4u) {
+    copy.SetEnPassantTargetSquare(Square(old_x, 5u));
+  } else {
+    copy.InvalidateEnPassantTargetSquare();
+  }
+}
+
 void MoveCalculator::MaybeAddMove(size_t old_x, size_t old_y, size_t new_x, size_t new_y, bool promotion) {
   char captured_figure = board_->at(new_x, new_y);
   if (captured_figure && !!isupper(captured_figure) == board_->WhiteToMove()) {
@@ -114,13 +124,13 @@ void MoveCalculator::MaybeAddMove(size_t old_x, size_t old_y, size_t new_x, size
   if (!white_to_move) {
     copy.IncrementFullMoveNumber();
   }
-  copy.InvalidateEnPassantTargetSquare();
   if (captured_figure || figure == 'P' || figure == 'p') {
     copy.ResetHalfMoveClock();
   } else {
     copy.IncrementHalfMoveClock();
   }
   UpdateCastlings(copy, figure, old_x, old_y);
+  UpdateEnPassantTargetSquare(copy, figure, old_x, old_y, new_y);
   if (promotion) {
     auto AddPromotionMove = [this, &copy, old_x, old_y, new_x, new_y, captured_figure](char promoted_to) {
       copy.at(new_x, new_y) = promoted_to;

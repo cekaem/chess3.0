@@ -2,6 +2,7 @@
 #define BOARD_H
 
 #include <array>
+#include <iostream>
 #include <string>
 
 struct InvalidFENException {
@@ -20,10 +21,13 @@ enum class Castling {
 };
 
 struct Square {
-  Square() {}
-  Square(const char* square);
-  void Invalidate();
   static size_t INVALID;
+
+  Square() {}
+  Square(size_t _x, size_t _y) : x(_x), y(_y) {}
+  Square(const std::string& square);
+
+  void Invalidate();
 
   bool IsInvalid() const {
     return x == INVALID || y == INVALID;
@@ -35,6 +39,8 @@ struct Square {
   size_t x{INVALID};
   size_t y{INVALID};
 };
+
+std::ostream& operator<<(std::ostream& os, const Square& square);
 
 class Board {
  public:
@@ -56,6 +62,7 @@ class Board {
   void ResetHalfMoveClock() { halfmove_clock_ = 0u; }
   void IncrementHalfMoveClock() { ++halfmove_clock_; }
   void UnsetCanCastle(Castling c) { castlings_[static_cast<size_t>(c)] = false; }
+  void SetEnPassantTargetSquare(Square s) { en_passant_target_square_ = s; }
   void InvalidateEnPassantTargetSquare() { en_passant_target_square_.Invalidate(); }
 
   void SetKingPosition(bool white, size_t x, size_t y);

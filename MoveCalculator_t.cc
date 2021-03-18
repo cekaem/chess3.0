@@ -54,16 +54,19 @@ bool MovesContainMove(
   return false;
 }
 
+bool MovesAreEqual(const Move& move, const std::string& move_str) {
+  COORDINATES_FROM_STRING(move_str);
+  return move.old_x == old_x && move.old_y == old_y &&
+         move.new_x == new_x && move.new_y == new_y;
+}
+
 bool MovesContainMove(
     const std::vector<Move>& moves,
-    const std::string& move,
+    const std::string& move_str,
     bool figure_captured = false,
     char promotion_to = 0x0) {
-  COORDINATES_FROM_STRING(move);
   for (const auto& move: moves) {
-    if (move.old_x == old_x && move.old_y == old_y &&
-        move.new_x == new_x && move.new_y == new_y &&
-        move.figure_captured == figure_captured &&
+    if (MovesAreEqual(move, move_str) &&
         move.promotion_to == promotion_to) {
       return true;
     }
@@ -388,9 +391,7 @@ TEST_PROCEDURE(MoveCalculator_half_move_clock) {
   auto IsMoveInList = [](const Move& move, const std::string& moves) -> bool {
     for (size_t i = 0; i < moves.length(); i += 4) {
       const std::string move_str = moves.substr(i, 4);
-      COORDINATES_FROM_STRING(move_str);
-      if (old_x == move.old_x && old_y == move.old_y &&
-          new_x == move.new_x && new_y == move.new_y) {
+      if (MovesAreEqual(move, move_str)) {
         return true;
       }
     }
@@ -477,13 +478,54 @@ TEST_PROCEDURE(MoveCalculator_figures_placement_after_move) {
 
 TEST_PROCEDURE(MoveCalculator_side_to_move_after_move) {
   TEST_START
-  NOT_REACHED("TODO");
+  std::vector<std::string> fens = {
+    "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+    "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq - 0 1",
+    "2k4r/8/7b/8/1Pp5/8/4K3/7q b - b3 0 1",
+    "r3k2r/8/8/8/8/8/8/R3K2R w KQkq b3 0 1",
+    "r3k2r/8/8/8/8/8/8/R3K2R b KQkq b3 0 1"
+  };
+
+  MoveCalculator calculator;
+
+  for (const auto& fen: fens) {
+    Board board(fen);
+    const bool expected_side_to_move = !board.WhiteToMove();
+    auto moves = calculator.CalculateAllMoves(fen);
+    for (const auto& move: moves) {
+      VERIFY_EQUALS(move.board.WhiteToMove(), expected_side_to_move) << "failed for fen \"" << fen << "\" and move " << move;
+    }
+  }
   TEST_END
 }
 
 TEST_PROCEDURE(MoveCalculator_en_passant_target_square_after_move) {
   TEST_START
-  NOT_REACHED("TODO");
+  std::vector<std::tuple<std::string, std::string, std::string>> cases = {
+    {"8/8/5K2/8/2p5/5k2/1P6/8 w - - 0 1", "b2b4", "b3"},
+    {"8/8/5K2/2pP4/8/5k2/8/8 b - - 0 1", "c7c5", "c6"},
+    // Below are test cases in which all moves should invalidate en passant target square
+    // so I provided dummy move and dummy expected en-passant target square.
+    {"r3k2r/8/8/8/8/8/8/R3K2R w - b6 0 1", "a1a1", ""},
+    {"r3k2r/8/8/8/8/8/8/R3K2R b - e3 0 1", "a1a1", ""},
+    {"4k2b/6Q1/8/N6n/8/7q/8/B3K3 b - b3 0 1", "a1a1", ""},
+    {"4k2b/6Q1/8/N6n/8/7q/8/B3K3 w - b3 0 1", "a1a1", ""},
+    {"8/1P1k4/8/8/8/P6p/2p5/5K2 w - h6 0 1", "a1a1", ""},
+    {"8/1P1k4/8/8/8/P6p/2p5/5K2 b - a3 0 1", "a1a1", ""}
+  };
+
+  MoveCalculator calculator;
+
+  for (const auto& [fen, move_str, en_passant_target_square]: cases) {
+    auto moves = calculator.CalculateAllMoves(fen);
+    for (const auto& move: moves) {
+      if (MovesAreEqual(move, move_str)) {
+        VERIFY_EQUALS(move.board.EnPassantTargetSquare(), Square(en_passant_target_square)) << "failed for fen " << fen;
+      } else {
+        VERIFY_TRUE(move.board.EnPassantTargetSquare().IsInvalid())  << "failed for fen \"" << fen << "\" and move " << move;
+      }
+    }
+  }
   TEST_END
 }
 
