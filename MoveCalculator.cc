@@ -3,6 +3,13 @@
 #include <cassert>
 #include <cctype>
 
+
+std::ostream& operator<<(std::ostream& os, const Move& move) {
+  os << static_cast<char>(move.old_x + 'a') << static_cast<char>(move.old_y + '1') << "-";
+  os << static_cast<char>(move.new_x + 'a') << static_cast<char>(move.new_y + '1');
+  return os;
+}
+
 std::vector<Move> MoveCalculator::CalculateAllMoves(const std::string& fen) {
   Board board(fen);
   return CalculateAllMoves(board);

@@ -13,12 +13,6 @@ namespace {
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
 
-std::ostream& operator<<(std::ostream& os, const Move& move) {
-  os << static_cast<char>(move.old_x + 'a') << static_cast<char>(move.old_y + '1') << "-";
-  os << static_cast<char>(move.new_x + 'a') << static_cast<char>(move.new_y + '1');
-  return os;
-}
-
 std::ostream& operator<<(std::ostream& os, const std::vector<Move>& moves) {
   for (const auto& move: moves) {
     os << move << std::endl;

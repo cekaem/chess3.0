@@ -47,6 +47,7 @@ class Board {
   Board(const std::string& fen);
   Board(const Board& other) = default;
   Board(Board&& other) = default;
+  Board& operator=(const Board& board) = default;
   bool IsKingInCheck(bool white) const;
   char& at(size_t x, size_t y) { return squares_[x][y]; }
   char at(size_t x, size_t y) const { return squares_[x][y]; }

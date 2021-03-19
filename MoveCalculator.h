@@ -1,6 +1,7 @@
 #ifndef MOVE_CALCULATOR_H_
 #define MOVE_CALCULATOR_H_
 
+#include <iostream>
 #include <vector>
 
 #include "Board.h"
@@ -19,6 +20,8 @@ struct Move {
   const char promotion_to{0x0};
   const bool figure_captured{false};
 };
+
+std::ostream& operator<<(std::ostream& os, const Move& move);
 
 class MoveCalculator {
  public:
