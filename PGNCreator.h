@@ -2,6 +2,7 @@
 #define PGN_CREATOR_H
 
 #include <string>
+#include <vector>
 
 #include "Board.h"
 #include "MoveCalculator.h"
@@ -22,6 +23,7 @@ class PGNCreator {
 
  private:
   Result result_{Result::NONE};
+  std::vector<std::string> moves_;
 };
 
 #endif  // PGN_CREATOR_H
