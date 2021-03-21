@@ -286,6 +286,12 @@ bool MoveCalculator::CanCastle(bool white_king, bool king_side) const {
   if (board_->at(first_x, rank) || board_->at(second_x, rank)) {
     return false;
   }
+  if (!king_side) {
+    const size_t third_x = second_x + offset;
+    if (board_->at(third_x, rank)) {
+      return false;
+    }
+  }
   if (board_->IsKingInCheck(white_king)) {
     return false;
   }

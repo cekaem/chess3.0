@@ -545,7 +545,12 @@ TEST_PROCEDURE(MoveCalculator_castlings) {
     {"r3k2r/8/5R2/8/8/2r5/8/R3K2R w KQkq - 0 2", true, false},
     {"r3k2r/8/5R2/8/8/2r5/8/R3K2R b KQkq - 0 2", false, true},
     {"r3k2r/8/8/8/8/4r3/8/R3K2R w KQkq - 0 2", false, false},
-    {"r3k2r/8/2B5/8/8/8/8/R3K2R b KQkq - 0 2", false, false}
+    {"r3k2r/8/2B5/8/8/8/8/R3K2R b KQkq - 0 2", false, false},
+    {"rn2k3/8/8/8/8/8/8/4K3 b KQkq - 0 11", false, false},
+    {"r3k3/8/8/4B3/8/8/8/4K3 b KQkq - 0 11", false, true},
+    {"4k3/8/8/8/8/8/8/RN2K3 w KQkq - 0 11", false, false},
+    {"4k3/8/8/8/8/n7/8/R3K3 w KQkq - 0 11", false, true},
+    {"4k3/8/8/8/8/2n5/8/R3K3 w KQkq - 0 11", false, false}
   };
 
   for (const auto& [fen, can_castle_king_side, can_castle_queen_side]: cases) {

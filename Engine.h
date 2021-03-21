@@ -3,10 +3,12 @@
 
 #include "Board.h"
 #include "MoveCalculator.h"
+#include "Types.h"
+
 
 struct NoMovesException {
-  NoMovesException(bool mate) : is_mate(mate) {}
-  const bool is_mate;
+  NoMovesException(GameResult r) : result(r) {}
+  const GameResult result;
 };
 
 class Engine {

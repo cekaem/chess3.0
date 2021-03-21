@@ -22,8 +22,12 @@ Move Engine::CalculateBestMove(const Board& board) const {
   MoveCalculator calculator;
   auto moves = calculator.CalculateAllMoves(board);
   if (moves.empty()) {
-    bool is_mate = board.IsKingInCheck(board.WhiteToMove());
-    throw NoMovesException(is_mate);
+    GameResult result = GameResult::DRAW;
+    const bool is_mate = board.IsKingInCheck(board.WhiteToMove());
+    if (is_mate) {
+      result = board.WhiteToMove() ? GameResult::BLACK_WON : GameResult::WHITE_WON;
+    }
+    throw NoMovesException(result);
   }
   size_t index = GetRandomNumber(moves.size());
   return moves[index];

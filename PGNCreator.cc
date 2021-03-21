@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <cctype>
+#include <sstream>
 #include <vector>
 
 
@@ -107,8 +108,11 @@ bool IsCastling(char figure, const Move& move, bool king_side) {
     return false;
   }
   const size_t expected_rank = (figure == 'K' ? 0u : 7u);
+  const size_t expected_source_file = 4u;
   const size_t expected_destination_file = (king_side ? 6u : 2u);
-  return move.new_x == expected_destination_file && move.new_y == expected_rank;
+  return move.old_x == expected_source_file &&
+         move.new_x == expected_destination_file &&
+         move.new_y == expected_rank;
 }
 
 std::string MoveToString(const Board& board, const Move& move) {
@@ -166,16 +170,45 @@ std::string MoveToString(const Board& board, const Move& move) {
 }  // unnamed namespace
 
 
-void PGNCreator::GameFinished(PGNCreator::Result result) {
+void PGNCreator::GameFinished(GameResult result) {
   result_ = result;
 }
 
 std::string PGNCreator::GetPGN() const {
-  return "";
+  std::stringstream ss;
+  std::string result_string;
+  switch (result_) {
+    case GameResult::WHITE_WON:
+      result_string.append("1-0");
+      break;
+    case GameResult::BLACK_WON:
+      result_string.append("0-1");
+      break;
+    case GameResult::DRAW:
+      result_string.append("1/2-1/2");
+      break;
+    case GameResult::NONE:
+      break;
+  }
+  if (!result_string.empty()) {
+    ss << "[Result \"" << result_string << "\"]" << std::endl;
+  }
+  for (const auto& move: moves_) {
+    ss << move << " ";
+  }
+  if (!result_string.empty()) {
+    ss << result_string;
+  }
+  return ss.str();
 }
 
 std::string PGNCreator::AddMove(const Board& board, const Move& move) {
   std::string move_str = MoveToString(board, move);
-  moves_.push_back(move_str);
+  std::stringstream ss;
+  if (board.WhiteToMove()) {
+    ss << board.FullMoveNumber() << ". ";
+  }
+  ss << move_str;
+  moves_.push_back(ss.str());
   return move_str;
 }
