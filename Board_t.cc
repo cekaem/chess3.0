@@ -142,6 +142,46 @@ TEST_PROCEDURE(Board_en_passant_square) {
   TEST_END
 }
 
+TEST_PROCEDURE(Board_operator_equals) {
+  TEST_START
+  const std::vector<std::tuple<std::string, std::string, bool>> cases = {
+    {"B1b2k1r/2pp2b1/Q6p/3Ppp2/1P2npP1/n7/R1PB1q1P/1N3KNR w - - 0 31",
+     "B1b2k1r/2pp2b1/Q6p/3Ppp2/1P2npP1/n7/R1PB1q1P/1N3KNR w - - 0 31",
+     true},
+    {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+     "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+     true},
+    {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQ c3 0 1",
+     "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQ c3 0 1",
+     true},
+    {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+     "rnbqkbnr/pppppppp/8/8/8/8/1PPPPPPP/RNBQKBNR w KQkq - 0 1",
+     false},
+    {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w Qkq - 0 1",
+     "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+     false},
+    {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+     "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq - 0 1",
+     false},
+    {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+     "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq a6 0 1",
+     false},
+    {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+     "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 1 1",
+     false},
+    {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+     "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 0",
+     false}
+  };
+
+  for (const auto&[fen1, fen2, are_equal]: cases) {
+    Board b1(fen1);
+    Board b2(fen2);
+    VERIFY_EQUALS(b1 == b2, are_equal) << "failed for fen1 \"" << fen1 << "\" and fen2 \"" << fen2 << "\"";
+  }
+  TEST_END
+}
+
 TEST_PROCEDURE(Board_IsKingInCheck) {
   TEST_START
   const std::vector<std::tuple<std::string, bool, bool>> cases = {

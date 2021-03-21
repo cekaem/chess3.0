@@ -32,6 +32,24 @@ std::ostream& operator<<(std::ostream& os, const Square& square) {
   return os;
 }
 
+bool operator==(const Board& b1, const Board& b2) {
+  for (size_t x = 0; x < 8u; ++x) {
+    for (size_t y = 0; y < 8u; ++y) {
+      if (b1.at(x, y) != b2.at(x, y)) {
+        return false;
+      }
+    }
+  }
+  return b1.WhiteToMove() == b2.WhiteToMove() &&
+         b1.HalfMoveClock() == b2.HalfMoveClock() &&
+         b1.FullMoveNumber() == b2.FullMoveNumber() &&
+         b1.EnPassantTargetSquare() == b2.EnPassantTargetSquare() &&
+         b1.CanCastle(Castling::Q) == b2.CanCastle(Castling::Q) &&
+         b1.CanCastle(Castling::K) == b2.CanCastle(Castling::K) &&
+         b1.CanCastle(Castling::q) == b2.CanCastle(Castling::q) &&
+         b1.CanCastle(Castling::k) == b2.CanCastle(Castling::k);
+}
+
 Board::Board(const std::string& fen) {
   size_t index = HandleFields(fen);
   index = HandleSideToMove(fen, index);

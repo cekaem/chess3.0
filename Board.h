@@ -89,4 +89,6 @@ class Board {
   bool castlings_[static_cast<size_t>(Castling::LAST)];
 };
 
+bool operator==(const Board& b1, const Board& b2);
+
 #endif  // BOARD_H
