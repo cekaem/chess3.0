@@ -35,7 +35,7 @@ class Engine {
   double FindBestEval(const EngineMoves& moves) const;
   EngineMoves FindMovesWithEvalInRoot(double eval) const;
   int CheckForMate(const EngineMoves& moves) const;
-  EngineMoves FindMovesWithMateInInRoot(double mate_in) const;
+  EngineMoves FindMovesWithMateInInRoot(int mate_in) const;
 
   EngineMoves root_;
   bool playing_white_;

@@ -61,7 +61,8 @@ TEST_PROCEDURE(Engine_exception_is_thrown_when_no_moves) {
 TEST_PROCEDURE(Engine_finds_mate_in_one) {
   TEST_START
   std::vector<std::tuple<std::string, std::string>> cases = {
-    {"3k4/8/3K4/8/8/8/8/R7 w - - 0 1", "a1a8"}
+    {"3k4/8/3K4/8/8/8/8/R7 w - - 0 1", "a1a8"},
+    {"1r5b/8/8/8/k7/8/K1p5/8 b - - 0 1", "c2c1n"}
   };
 
   Engine engine;

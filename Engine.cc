@@ -83,7 +83,7 @@ bool IsMate(const Board& board) {
 
 Engine::EngineMove::EngineMove(const Board& b) : board(std::move(b)) {
   eval = EvaluateMove(board);
-  mate_in = IsMate(board) ? (board.WhiteToMove() ? 1 : -1) : 0;
+  mate_in = IsMate(board) ? (board.WhiteToMove() ? -1 : 1) : 0;
 }
 
 Engine::Engine() {
@@ -150,7 +150,7 @@ int Engine::CheckForMate(const EngineMoves& moves) const {
   return mate_found ? result : 0;
 }
 
-Engine::EngineMoves Engine::FindMovesWithMateInInRoot(double mate_in) const {
+Engine::EngineMoves Engine::FindMovesWithMateInInRoot(int mate_in) const {
   EngineMoves result;
   for (const auto& move: root_) {
     if (move.mate_in == mate_in) {
