@@ -21,7 +21,7 @@ enum class Castling {
 };
 
 struct Square {
-  static size_t INVALID;
+  static const unsigned char INVALID = '9';
 
   Square() {}
   Square(size_t _x, size_t _y) : x(_x), y(_y) {}
@@ -36,8 +36,8 @@ struct Square {
   bool operator==(const Square& other) const;
   bool operator!=(const Square& other) const;
 
-  size_t x{INVALID};
-  size_t y{INVALID};
+  unsigned char x{INVALID};
+  unsigned char y{INVALID};
 };
 
 std::ostream& operator<<(std::ostream& os, const Square& square);
@@ -81,8 +81,8 @@ class Board {
 
   std::array<std::array<char, 8>, 8> squares_;
   bool white_to_move_;
-  unsigned halfmove_clock_;
-  unsigned fullmove_number_;
+  unsigned short halfmove_clock_;
+  unsigned short fullmove_number_;
   Square white_king_position_;
   Square black_king_position_;
   Square en_passant_target_square_;

@@ -3,8 +3,6 @@
 #include "utils/Utils.h"
 
 
-size_t Square::INVALID = 9;
-
 Square::Square(const std::string& square) {
   x = square[0] - 'a';
   y = square[1] - '1';
@@ -61,7 +59,7 @@ Board::Board(const std::string& fen) {
 
 void Board::HandleFullMoveNumber(const std::string& fen, size_t index) {
   const std::string& full_move_number_str = fen.substr(index);
-  if (!utils::str_2_uint(full_move_number_str, fullmove_number_)) {
+  if (!utils::str_2_number(full_move_number_str, fullmove_number_)) {
     throw InvalidFENException(fen, "Invalid full move number");
   }
 }
@@ -72,7 +70,7 @@ size_t Board::HandleHalfMoveClock(const std::string& fen, size_t index) {
     throw InvalidFENException(fen, "Error in half move clock section");
   }
   const std::string& half_move_clock_str = fen.substr(index, end_index - index);
-  if (!utils::str_2_uint(half_move_clock_str, halfmove_clock_)) {
+  if (!utils::str_2_number(half_move_clock_str, halfmove_clock_)) {
     throw InvalidFENException(fen, "Invalid half move clock");
   }
   return end_index + 1;

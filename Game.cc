@@ -10,7 +10,7 @@ int main() {
   PGNCreator pgn_creator;
   try {
     Board board("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
-    Engine engine;
+    Engine engine(4u, 3000u);
     for (int i = 0; i < 100; ++i) {
       Move move = engine.CalculateBestMove(board);
       pgn_creator.AddMove(board, move);

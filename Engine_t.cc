@@ -43,7 +43,7 @@ TEST_PROCEDURE(Engine_exception_is_thrown_when_no_moves) {
     {"8/8/8/8/8/8/3R4/5K1k b - - 0 1", true, GameResult::DRAW}
   };
 
-  Engine engine;
+  Engine engine(1u, 100u);
 
   for (const auto&[fen, no_moves, result]: cases) {
     Board board(fen);
@@ -65,7 +65,7 @@ TEST_PROCEDURE(Engine_finds_mate_in_one) {
     {"1r5b/8/8/8/k7/8/K1p5/8 b - - 0 1", "c2c1n"}
   };
 
-  Engine engine;
+  Engine engine(1u, 100u);
 
   for (const auto&[fen, expected_move]: cases) {
     Board board(fen);
