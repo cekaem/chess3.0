@@ -6,7 +6,6 @@
 #include "Board.h"
 #include "MoveCalculator.h"
 #include "Types.h"
-#include "utils/Timer.h"
 
 
 struct NoMovesException {
@@ -16,8 +15,10 @@ struct NoMovesException {
 
 class Engine {
  public:
+  Engine(unsigned max_depth);
   Engine(unsigned max_depth, unsigned max_time_for_move);
   Move CalculateBestMove(const Board& board);
+  unsigned NodesCalculated() const { return nodes_calculated_; }
 
  private:
   struct EngineMove {
@@ -30,6 +31,15 @@ class Engine {
     std::vector<EngineMove> children;
   };
 
+  struct BorderValues {
+    static const int NOT_SET = 999;
+    bool is_zero{false};
+    int the_biggest_value{NOT_SET};
+    int the_lowest_value {NOT_SET};
+    int the_biggest_negative_value{NOT_SET};
+    int the_lowest_positive_value{NOT_SET};
+  };
+
   using EngineMoves = std::vector<EngineMove>;
 
   EngineMoves GenerateEngineMovesForBoard(const Board& board);
@@ -39,6 +49,7 @@ class Engine {
   EngineMoves FindMovesWithEvalInRoot(double eval) const;
   int CheckForMate(const EngineMoves& moves) const;
   EngineMoves FindMovesWithMateInInRoot(int mate_in) const;
+  BorderValues GetBorderValuesForChildren(const EngineMove& parent) const;
   void EvaluateChildrenAndUpdateParent(EngineMoves& parent) const;
   bool UpdateMoveMovesToMateBasedOnChildren(EngineMove& move) const;
   void UpdateMoveEvalBasedOnChildren(EngineMove& move) const;
@@ -48,7 +59,6 @@ class Engine {
   EngineMoves root_;
   bool playing_white_;
   bool continue_calculations_;
-  utils::Timer timer_;
   unsigned nodes_calculated_;
 };
 

@@ -43,7 +43,7 @@ TEST_PROCEDURE(Engine_exception_is_thrown_when_no_moves) {
     {"8/8/8/8/8/8/3R4/5K1k b - - 0 1", true, GameResult::DRAW}
   };
 
-  Engine engine(1u, 100u);
+  Engine engine(1u);
 
   for (const auto&[fen, no_moves, result]: cases) {
     Board board(fen);
@@ -58,6 +58,26 @@ TEST_PROCEDURE(Engine_exception_is_thrown_when_no_moves) {
   TEST_END
 }
 
+TEST_PROCEDURE(Engine_finds_mate_in_two) {
+  TEST_START
+  std::vector<std::tuple<std::string, std::string>> cases = {
+    {"7k/4Q3/8/8/8/8/7B/6K1 w - - 0 1", "h2e5"},
+    {"8/1k6/8/8/2r5/1r6/6K1/8 b - - 0 1", "c4c2"},
+    {"1r5k/6pp/7N/3Q4/8/8/6K1/8 w - - 0 1", "d5g8"},
+    {"8/2k5/8/8/3q4/7n/6PP/1R5K b - - 0 1", "d4g1"}
+  };
+
+  Engine engine(3u);
+
+   for (const auto&[fen, expected_move]: cases) {
+    Board board(fen);
+    auto move = engine.CalculateBestMove(board);
+    VERIFY_TRUE(MovesAreEqual(move, expected_move)) << "failed for fen \"" << fen << "\"; move: " << move;
+  }
+
+  TEST_END
+}
+
 TEST_PROCEDURE(Engine_finds_mate_in_one) {
   TEST_START
   std::vector<std::tuple<std::string, std::string>> cases = {
@@ -65,7 +85,7 @@ TEST_PROCEDURE(Engine_finds_mate_in_one) {
     {"1r5b/8/8/8/k7/8/K1p5/8 b - - 0 1", "c2c1n"}
   };
 
-  Engine engine(1u, 100u);
+  Engine engine(1);
 
   for (const auto&[fen, expected_move]: cases) {
     Board board(fen);

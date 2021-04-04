@@ -39,10 +39,10 @@ $(OBJ_DIR)/Board_t.o: Board_t.cc Board.h utils/Test.h utils/Mock.h utils/Utils.h
 $(OBJ_DIR)/Board.o: Board.cc Board.h
 	$(CXX) $(CFLAGS) -c -o $(OBJ_DIR)/Board.o Board.cc
 
-$(OBJ_DIR)/Engine.o: Engine.cc Engine.h MoveCalculator.h Board.h Types.h
+$(OBJ_DIR)/Engine.o: Engine.cc Engine.h MoveCalculator.h Board.h Types.h utils/Timer.h
 	$(CXX) $(CFLAGS) -c -o $(OBJ_DIR)/Engine.o Engine.cc
 
-$(OBJ_DIR)/Engine_t.o: Engine_t.cc Engine.h MoveCalculator.h Board.h utils/Test.h utils/Mock.h utils/Utils.h Types.h
+$(OBJ_DIR)/Engine_t.o: Engine_t.cc Engine.h MoveCalculator.h Board.h utils/Test.h utils/Mock.h utils/Utils.h Types.h utils/Timer.h
 	$(CXX) $(CFLAGS) -c -o $(OBJ_DIR)/Engine_t.o Engine_t.cc
 
 $(OBJ_DIR)/MoveCalculator.o: MoveCalculator.cc MoveCalculator.h Board.h

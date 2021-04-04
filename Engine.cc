@@ -5,6 +5,8 @@
 #include <cstdlib>
 #include <ctime>
 
+#include "utils/Timer.h"
+
 
 namespace {
 
@@ -13,6 +15,8 @@ static double KnightValue = 3.0;
 static double BishopValue = 3.0;
 static double RookValue = 5.0;
 static double QueenValue = 8.0;
+
+static int BorderValue =  1000;
 
 // Returns random value from range [0, max).
 size_t GetRandomNumber(size_t max) {
@@ -86,6 +90,10 @@ Engine::EngineMove::EngineMove(const Board& b) : board(std::move(b)) {}
 void Engine::EngineMove::Evaluate() {
   eval = EvaluateMove(board);
   mate_in = IsMate(board) ? (board.WhiteToMove() ? -1 : 1) : 0;
+}
+
+Engine::Engine(unsigned depth) : max_depth_(depth) {
+  srand(static_cast<unsigned int>(clock()));
 }
 
 Engine::Engine(unsigned depth, unsigned time)
@@ -175,16 +183,77 @@ Engine::EngineMoves Engine::FindMovesWithMateInInRoot(int mate_in) const {
   return result;
 }
 
-bool Engine::UpdateMoveMovesToMateBasedOnChildren(EngineMove& move) const {
-  int mate_for_white = 1000;
-  int mate_for_black = -1000;
-  for (const auto& child: move.children) {
-    if (child.mate_in > 0 && child.mate_in < mate_for_white) {
-      mate_for_white = child.mate_in + 1;
-    } else if (child.mate_in < 0 && child.mate_in > mate_for_black) {
-      mate_for_black = child.mate_in - 1;
+Engine::BorderValues Engine::GetBorderValuesForChildren(const EngineMove& parent) const {
+  int the_lowest_value = BorderValue;
+  int the_biggest_negative_value = -BorderValue;
+  int the_biggest_value = -BorderValue;
+  int the_lowest_positive_value = BorderValue;
+  BorderValues border_values;
+  for (const EngineMove& child: parent.children) {
+    if (child.mate_in == 0) {
+      border_values.is_zero = true;
+    } else if (child.mate_in < 0) {
+      if (child.mate_in < the_lowest_value) {
+        the_lowest_value = child.mate_in;
+      }
+      if (child.mate_in > the_biggest_negative_value) {
+        the_biggest_negative_value = child.mate_in;
+      }
+    } else if (child.mate_in > 0) {
+      if (child.mate_in > the_biggest_value) {
+        the_biggest_value = child.mate_in;
+      }
+      if (child.mate_in < the_lowest_positive_value) {
+        the_lowest_positive_value = child.mate_in;
+      }
     }
   }
+  if (the_lowest_value != BorderValue) {
+    border_values.the_lowest_value = the_lowest_value;
+  }
+  if (the_biggest_negative_value != -BorderValue) {
+    border_values.the_biggest_negative_value = the_biggest_negative_value;
+  }
+  if (the_biggest_value != -BorderValue) {
+    border_values.the_biggest_value = the_biggest_value;
+  }
+  if (the_lowest_positive_value != BorderValue) {
+    border_values.the_lowest_positive_value = the_lowest_positive_value;
+  }
+  return border_values;
+}
+
+bool Engine::UpdateMoveMovesToMateBasedOnChildren(EngineMove& move) const {
+  const bool is_my_move = playing_white_ == move.board.WhiteToMove();
+  BorderValues border_values = GetBorderValuesForChildren(move);
+  int result = 0;
+  if ((playing_white_ && is_my_move) ||
+      (!playing_white_ && !is_my_move)) {
+    if (border_values.the_lowest_positive_value != BorderValues::NOT_SET) {
+      result = border_values.the_lowest_positive_value;
+    } else if (border_values.is_zero) {
+      result = 0;
+    } else {
+      assert(border_values.the_lowest_value < 0);
+      result = border_values.the_lowest_value;
+    }
+  } else if ((!playing_white_ && is_my_move) ||
+             (playing_white_ && !is_my_move)) {
+    if (border_values.the_biggest_negative_value != BorderValues::NOT_SET) {
+      result = border_values.the_biggest_negative_value;
+    } else if (border_values.is_zero) {
+      result = 0;
+    } else {
+      assert(border_values.the_biggest_value > 0);
+      result = border_values.the_biggest_value;
+    }
+  }
+  if (result > 0) {
+    move.mate_in = result + 1;
+  } else if (result < 0) {
+    move.mate_in = result - 1;
+  }
+  return result != 0;
 }
 
 void Engine::UpdateMoveEvalBasedOnChildren(EngineMove& move) const {
@@ -205,12 +274,14 @@ void Engine::EvaluateChildrenAndUpdateParent(EngineMoves& parent) const {
 
 Move Engine::CalculateBestMove(const Board& board) {
   assert(max_depth_ > 0u);
-  assert(max_time_ > 0u);
   continue_calculations_ = true;
   nodes_calculated_ = 0u;
-  timer_.start(max_time_, [this]() {
+  utils::Timer timer;
+  if (max_time_) {
+    timer.start(max_time_, [this]() {
       continue_calculations_ = false;
-  });
+    });
+  }
   playing_white_ = board.WhiteToMove();
   root_ = GenerateEngineMovesForBoard(board);
   if (root_.empty()) {
@@ -235,7 +306,8 @@ Move Engine::CalculateBestMove(const Board& board) {
   }
   assert(!best_moves.empty());
   size_t index = GetRandomNumber(best_moves.size());
-  timer_.stop();
-  std::cout << "nodes: " << nodes_calculated_ << std::endl;
+  if (max_time_) {
+    timer.stop();
+  }
   return FindMoveForBoard(board, best_moves[index].board);
 }
