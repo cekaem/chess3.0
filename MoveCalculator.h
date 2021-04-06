@@ -2,31 +2,32 @@
 #define MOVE_CALCULATOR_H_
 
 #include <iostream>
+#include <utility>
 #include <vector>
 
 #include "Board.h"
 
 struct Move {
-  Move(Board&& b, size_t ox, size_t oy, size_t nx, size_t ny, char p, bool fc) :
-    board(std::move(b)), old_x(ox), old_y(oy), new_x(nx), new_y(ny), promotion_to(p), figure_captured(fc) {}
-  Move(Board& b, size_t ox, size_t oy, size_t nx, size_t ny, char p, bool fc) :
-    board(b), old_x(ox), old_y(oy), new_x(nx), new_y(ny), promotion_to(p), figure_captured(fc) {}
-
-  const Board board;
-  const size_t old_x;
-  const size_t old_y;
-  const size_t new_x;
-  const size_t new_y;
-  const char promotion_to{0x0};
-  const bool figure_captured{false};
+  Square old_square;
+  Square new_square;
+  char promotion_to = 0x0;
 };
 
-std::ostream& operator<<(std::ostream& os, const Move& move);
+struct SerializedMove {
+  SerializedMove(size_t old_x, size_t old_y, size_t new_x, size_t new_y, char promotion);
+  Move ToMove() const;
+
+  const short data{0};
+};
+
+std::ostream& operator<<(std::ostream& ostr, const SerializedMove& move_serialized);
+std::ostream& operator<<(std::ostream& ostr, const Move& move);
 
 class MoveCalculator {
  public:
-  std::vector<Move> CalculateAllMoves(const Board& board);
-  std::vector<Move> CalculateAllMoves(const std::string& fen);
+  std::vector<SerializedMove> CalculateAllMoves(const Board& board);
+  std::vector<SerializedMove> CalculateAllMoves(const std::string& fen);
+  void ApplyMoveOnBoard(Board& board, SerializedMove& serialized_move) const;
 
  private:
   void HandlePawnMoves(size_t x, size_t y);
@@ -45,7 +46,7 @@ class MoveCalculator {
   void UpdateEnPassantTargetSquare(Board& copy, char figure, size_t old_x, size_t old_y, size_t new_y) const;
 
   const Board* board_{nullptr};
-  std::vector<Move> moves_;
+  std::vector<SerializedMove> moves_;
 };
 
 #endif  // MOVE_CALCULATOR_H_

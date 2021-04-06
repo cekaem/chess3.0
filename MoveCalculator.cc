@@ -5,9 +5,82 @@
 
 
 std::ostream& operator<<(std::ostream& os, const Move& move) {
-  os << static_cast<char>(move.old_x + 'a') << static_cast<char>(move.old_y + '1') << "-";
-  os << static_cast<char>(move.new_x + 'a') << static_cast<char>(move.new_y + '1');
+  os << static_cast<char>(move.old_square.x + 'a') << static_cast<char>(move.old_square.y + '1') << "-";
+  os << static_cast<char>(move.new_square.x + 'a') << static_cast<char>(move.new_square.y + '1');
   return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const SerializedMove& move_serialized) {
+  Move move = move_serialized.ToMove();
+  os << move;
+  return os;
+}
+
+SerializedMove::SerializedMove(size_t old_x, size_t old_y,
+                               size_t new_x, size_t new_y,
+                               char promotion) {
+  data = old_x;
+  data <<= 3;
+  data |= old_y;
+  data <<= 3;
+  data |= new_x;
+  data <<= 3;
+  data |= new_y;
+  data <<= 3;
+  if (promotion) {
+    data |= 4;
+    switch (promotion) {
+      case 'N':
+      case 'n':
+        break;
+      case 'B':
+      case 'b':
+        data |= 1;
+        break;
+      case 'R':
+      case 'r':
+        data |= 2;
+        break;
+      case 'Q':
+      case 'q':
+        data |= 3;
+        break;
+      default:
+        assert(!"Uknown promotion figure.");
+        break;
+    }
+  }
+  data <<= 1;
+}
+
+Move SerializedMove::ToMove() const {
+  Move result;
+  result.old_square.x = (data >> 13);
+  result.old_square.y = (data >> 10) & 7;
+  result.new_square.x = (data >> 7) & 7;
+  result.new_square.y = (data >> 4) & 7;
+  bool promotion = (data >> 3) & 1;
+  if (promotion) {
+    char promotion_to = (data >> 2) & 3;
+    switch (promotion_to) {
+      case 0:
+        result.promotion_to = 'N';
+        break;
+      case 1:
+        result.promotion_to = 'B';
+        break;
+      case 2:
+        result.promotion_to = 'R';
+        break;
+      case 3:
+        result.promotion_to = 'Q';
+        break;
+      default:
+        assert(!"Unknown promotion_to");
+        break;
+    }
+  }
+  return result;
 }
 
 std::vector<Move> MoveCalculator::CalculateAllMoves(const std::string& fen) {
@@ -97,47 +170,57 @@ void MoveCalculator::UpdateEnPassantTargetSquare(Board& copy, char figure, size_
   }
 }
 
-void MoveCalculator::MaybeAddMove(size_t old_x, size_t old_y, size_t new_x, size_t new_y, bool promotion) {
-  char captured_figure = board_->at(new_x, new_y);
-  if (captured_figure && !!isupper(captured_figure) == board_->WhiteToMove()) {
-    return;
+bool MoveCalculator::ApplyMoveOnBoard(Board& board, SerializedMove& serialized_move) const {
+  Move move = serialized_move.ToMove();
+  const char figure = board.at(move.old_square.x, move.old_square.y);
+  char captured_figure = board.at(move.new_square.x, move.new_square.y);
+  if ((captured_figure && !!isupper(captured_figure) == board.WhiteToMove()) ||
+      captured_figure == 'K' || captured_figure == 'k' || !figure) {
+    return false;
   }
-  const char figure = board_->at(old_x, old_y);
-  const bool white_to_move = board_->WhiteToMove();
-  const Square en_passant_target_square = board_->EnPassantTargetSquare();
+  const bool white_to_move = board.WhiteToMove();
+  const Square en_passant_target_square = board.EnPassantTargetSquare();
   const bool en_passant_capture =
-      en_passant_target_square.x == new_x &&
-      en_passant_target_square.y == new_y &&
+      en_passant_target_square.x == move.new_square.x &&
+      en_passant_target_square.y == move.new_square.y &&
       figure == (white_to_move ? 'P' : 'p');
-  Board copy = *board_;
-  assert(figure);
-  assert(captured_figure != 'K' && captured_figure != 'k');
-  copy.at(old_x, old_y) = '\0';
-  copy.at(new_x, new_y) = figure;
+  board.at(old_x, old_y) = '\0';
+  board.at(new_x, new_y) = figure;
   if (en_passant_capture) {
     captured_figure = white_to_move ? 'p' : 'P';
     const size_t captured_pawn_y = white_to_move ? 4u : 3u;
-    copy.at(en_passant_target_square.x, captured_pawn_y) = 0x0;
+    board.at(en_passant_target_square.x, captured_pawn_y) = 0x0;
   }
   if (figure == 'K') {
-    copy.SetKingPosition(true, new_x, new_y);
+    board.SetKingPosition(true, move.new_square.x, move.new_sqaure.y);
   } else if (figure == 'k') {
-    copy.SetKingPosition(false, new_x, new_y);
+    board.SetKingPosition(false, move.new_square.x, move.new_sqaure.y);
   }
   if (copy.IsKingInCheck(white_to_move)) {
-    return;
+    return false;
   }
-  copy.ChangeSideToMove();
+  board.ChangeSideToMove();
   if (!white_to_move) {
-    copy.IncrementFullMoveNumber();
+    board.IncrementFullMoveNumber();
   }
   if (captured_figure || figure == 'P' || figure == 'p') {
-    copy.ResetHalfMoveClock();
+    board.ResetHalfMoveClock();
   } else {
-    copy.IncrementHalfMoveClock();
+    board.IncrementHalfMoveClock();
   }
-  UpdateCastlings(copy, figure, old_x, old_y);
-  UpdateEnPassantTargetSquare(copy, figure, old_x, old_y, new_y);
+  UpdateCastlings(board, figure, move.old_square,x, move.old_square.y);
+  UpdateEnPassantTargetSquare(board, figure, move.old_square.x, move.old_square.y, move.new_square.y);
+  if (move.promotion_to) {
+    board.at(move.new_square.x, move.new_square.y) = move.promotion_to;
+  }
+  return true;
+}
+
+void MoveCalculator::MaybeAddMove(size_t old_x, size_t old_y, size_t new_x, size_t new_y, bool promotion) {
+  Board copy = *board_;
+  if (!ApplyMoveOnBoard(copy, move)) {
+    return;
+  }
   if (promotion) {
     auto AddPromotionMove = [this, &copy, old_x, old_y, new_x, new_y, captured_figure](char promoted_to) {
       copy.at(new_x, new_y) = promoted_to;
