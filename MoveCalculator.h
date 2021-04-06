@@ -17,17 +17,23 @@ struct SerializedMove {
   SerializedMove(size_t old_x, size_t old_y, size_t new_x, size_t new_y, char promotion);
   Move ToMove() const;
 
-  const short data{0};
+  short data{0};
 };
 
 std::ostream& operator<<(std::ostream& ostr, const SerializedMove& move_serialized);
 std::ostream& operator<<(std::ostream& ostr, const Move& move);
 
+struct InvalidMoveException {
+  InvalidMoveException(const SerializedMove& m) : move(m) {}
+
+  const SerializedMove move;
+};
+
 class MoveCalculator {
  public:
-  std::vector<SerializedMove> CalculateAllMoves(const Board& board);
+  std::vector<SerializedMove> CalculateAllMoves(Board& board);
   std::vector<SerializedMove> CalculateAllMoves(const std::string& fen);
-  void ApplyMoveOnBoard(Board& board, SerializedMove& serialized_move) const;
+  static void ApplyMoveOnBoard(Board& board, const SerializedMove& serialized_move);
 
  private:
   void HandlePawnMoves(size_t x, size_t y);
@@ -42,10 +48,11 @@ class MoveCalculator {
   void CheckNewSquareAndMaybeAddMove(size_t old_x, size_t old_y, int new_x, int new_y);
   void MaybeAddMove(size_t old_x, size_t old_y, size_t new_x, size_t new_y, bool promotion = false);
   void HandleMovesHelper(size_t x, size_t y, int x_offset, int y_offset);
-  void UpdateCastlings(Board& copy, char figure, size_t old_x, size_t old_y) const;
-  void UpdateEnPassantTargetSquare(Board& copy, char figure, size_t old_x, size_t old_y, size_t new_y) const;
 
-  const Board* board_{nullptr};
+  static void UpdateCastlings(Board& copy, char figure, size_t old_x, size_t old_y);
+  static void UpdateEnPassantTargetSquare(Board& copy, char figure, size_t old_x, size_t old_y, size_t new_y);
+
+  Board* board_{nullptr};
   std::vector<SerializedMove> moves_;
 };
 

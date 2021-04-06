@@ -104,35 +104,6 @@ TEST_PROCEDURE(Board_fen_constructor_invalid_fens) {
   TEST_END
 }
 
-TEST_PROCEDURE(Board_CopyConstructor) {
-  TEST_START
-  const std::vector<std::string> fens = {
-    "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-    "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b - - 0 1",
-    "6kR/pppq1rB1/n2pr3/3Pp3/1PP3Q1/P3P3/6K1/7R b kQ c1 0 29",
-    "6kR/pppq1rB1/n2pr3/3Pp3/1PP3Q1/P3P3/6K1/7R w qK h7 0 27",
-    "6kR/pppq1rB1/n2pr3/3Pp3/1PP3Q1/P3P3/6K1/7R b - - 5 0"
-  };
-  for (const auto& fen: fens) {
-    Board board(fen);
-    Board copy = board;
-    for (size_t x = 0; x < 8; ++x) {
-      for (size_t y = 0; y < 8; ++y) {
-        VERIFY_EQUALS(board.at(x, y), copy.at(x, y)) << "failed for fen: " << fen;
-      }
-    }
-    VERIFY_EQUALS(board.WhiteToMove(), copy.WhiteToMove()) << "failed for fen: " << fen;
-    VERIFY_EQUALS(board.CanCastle(Castling::Q), copy.CanCastle(Castling::Q)) << "failed for fen: " << fen;
-    VERIFY_EQUALS(board.CanCastle(Castling::K), copy.CanCastle(Castling::K)) << "failed for fen: " << fen;
-    VERIFY_EQUALS(board.CanCastle(Castling::q), copy.CanCastle(Castling::q)) << "failed for fen: " << fen;
-    VERIFY_EQUALS(board.CanCastle(Castling::k), copy.CanCastle(Castling::k)) << "failed for fen: " << fen;
-    VERIFY_EQUALS(board.EnPassantTargetSquare(), copy.EnPassantTargetSquare()) << "failed for fen: " << fen;
-    VERIFY_EQUALS(board.HalfMoveClock(), copy.HalfMoveClock()) << "failed for fen: " << fen;
-    VERIFY_EQUALS(board.FullMoveNumber(), copy.FullMoveNumber()) << "failed for fen: " << fen;
-  }
-  TEST_END
-}
-
 TEST_PROCEDURE(Board_en_passant_square) {
   TEST_START
   Board board("8/8/8/3k4/8/6K1/8/8 b - b3 0 17");

@@ -7,6 +7,7 @@
 
 #include "utils/Timer.h"
 
+/*
 
 namespace {
 
@@ -75,7 +76,7 @@ double EvaluateMove(const Board& board) {
   return result;
 }
 
-bool IsMate(const Board& board) {
+bool IsMate(Board& board) {
   MoveCalculator calculator;
   return calculator.CalculateAllMoves(board).empty() &&
          board.IsKingInCheck(board.WhiteToMove());
@@ -102,7 +103,7 @@ Engine::Engine(unsigned depth, unsigned time)
   srand(static_cast<unsigned int>(clock()));
 }
 
-Engine::EngineMoves Engine::GenerateEngineMovesForBoard(const Board& board) {
+Engine::EngineMoves Engine::GenerateEngineMovesForBoard(Board& board) {
   EngineMoves result;
   MoveCalculator calculator;
   auto moves = calculator.CalculateAllMoves(board);
@@ -311,3 +312,4 @@ Move Engine::CalculateBestMove(const Board& board) {
   }
   return FindMoveForBoard(board, best_moves[index].board);
 }
+*/

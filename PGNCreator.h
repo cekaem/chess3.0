@@ -8,7 +8,7 @@
 #include "MoveCalculator.h"
 #include "Types.h"
 
-
+/*
 class PGNCreator {
  public:
   std::string GetPGN() const;
@@ -20,4 +20,5 @@ class PGNCreator {
   std::vector<std::string> moves_;
 };
 
+*/
 #endif  // PGN_CREATOR_H

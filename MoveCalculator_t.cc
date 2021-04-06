@@ -10,6 +10,7 @@
 
 namespace {
 
+/*
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
 
@@ -304,6 +305,13 @@ TEST_PROCEDURE(MoveCalculator_various_cases) {
     auto moves = calculator.CalculateAllMoves(board);
     VERIFY_EQUALS(moves.size(), 0u);
   }
+  {
+    Board board("8/5k2/4br2/5B2/2K5/8/8/8 w - - 0 1");
+    MoveCalculator calculator;
+    auto moves = calculator.CalculateAllMoves(board);
+    VERIFY_EQUALS(moves.size(), 15u);
+    VERIFY_TRUE(MovesContainMove(moves, "f5e6", true));
+  }
   TEST_END
 }
 
@@ -570,6 +578,34 @@ TEST_PROCEDURE(MoveCalculator_castlings) {
     } else {
       VERIFY_FALSE(MovesContainMove(moves, queen_side_castling)) << "failed for fen: " << fen;
     }
+  }
+  TEST_END
+}
+
+*/
+
+TEST_PROCEDURE(SerializedMove_constructor) {
+  TEST_START
+  const std::vector<std::tuple<size_t, size_t, size_t, size_t, char, short>> cases = {
+    {0, 0, 0, 0, 0x0, 0},
+    {1, 0, 0, 0, 0x0, 0x2000},
+    {0, 2, 0, 0, 0x0, 0x0800},
+    {0, 0, 5, 0, 0x0, 0x0280},
+    {0, 0, 0, 7, 0x0, 0x0070},
+    {0, 0, 0, 0, 'Q', 0x000e},
+    {0, 0, 0, 0, 'q', 0x000e},
+    {0, 0, 0, 0, 'R', 0x000c},
+    {0, 0, 0, 0, 'r', 0x000c},
+    {0, 0, 0, 0, 'B', 0x000a},
+    {0, 0, 0, 0, 'b', 0x000a},
+    {0, 0, 0, 0, 'N', 0x0008},
+    {0, 0, 0, 0, 'n', 0x0008},
+    {2, 7, 1, 5, 'q', 0x5cde}
+  };
+
+  for (const auto &[old_x, old_y, new_x, new_y, promotion_to, expected_data]: cases) {
+    SerializedMove move(old_x, old_y, new_x, new_y, promotion_to);
+    VERIFY_EQUALS(move.data, expected_data) << "failed for expected data " << expected_data;
   }
   TEST_END
 }

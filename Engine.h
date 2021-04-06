@@ -7,7 +7,7 @@
 #include "MoveCalculator.h"
 #include "Types.h"
 
-
+/*
 struct NoMovesException {
   NoMovesException(GameResult r) : result(r) {}
   const GameResult result;
@@ -42,7 +42,7 @@ class Engine {
 
   using EngineMoves = std::vector<EngineMove>;
 
-  EngineMoves GenerateEngineMovesForBoard(const Board& board);
+  EngineMoves GenerateEngineMovesForBoard(Board& board);
   Move FindMoveForBoard(const Board& initial_board, const Board& dest_board) const;
   void GenerateNextDepth(EngineMoves& moves);
   double FindBestEval(const EngineMoves& moves) const;
@@ -61,5 +61,5 @@ class Engine {
   bool continue_calculations_;
   unsigned nodes_calculated_;
 };
-
+*/
 #endif  // ENGINE_H

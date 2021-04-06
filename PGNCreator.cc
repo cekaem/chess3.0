@@ -5,7 +5,7 @@
 #include <sstream>
 #include <vector>
 
-
+/*
 namespace {
 
 enum class MoveTypeFlag {
@@ -212,3 +212,5 @@ std::string PGNCreator::AddMove(const Board& board, const Move& move) {
   moves_.push_back(ss.str());
   return move_str;
 }
+
+*/

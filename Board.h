@@ -45,9 +45,9 @@ std::ostream& operator<<(std::ostream& os, const Square& square);
 class Board {
  public:
   Board(const std::string& fen);
-  Board(const Board& other) = default;
-  Board(Board&& other) = default;
-  Board& operator=(const Board& board) = default;
+  Board(const Board& other) = delete;
+  Board(Board&& other) = delete;
+  Board& operator=(const Board& board) = delete;
   bool IsKingInCheck(bool white) const;
   char& at(size_t x, size_t y) { return squares_[x][y]; }
   char at(size_t x, size_t y) const { return squares_[x][y]; }

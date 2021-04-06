@@ -83,12 +83,12 @@ Move SerializedMove::ToMove() const {
   return result;
 }
 
-std::vector<Move> MoveCalculator::CalculateAllMoves(const std::string& fen) {
+std::vector<SerializedMove> MoveCalculator::CalculateAllMoves(const std::string& fen) {
   Board board(fen);
   return CalculateAllMoves(board);
 }
 
-std::vector<Move> MoveCalculator::CalculateAllMoves(const Board& board) {
+std::vector<SerializedMove> MoveCalculator::CalculateAllMoves(Board& board) {
   board_ = &board;
   moves_.clear();
   const bool white_to_move = board.WhiteToMove();
@@ -138,45 +138,45 @@ void MoveCalculator::CheckNewSquareAndMaybeAddMove(size_t old_x, size_t old_y, i
   }
 }
 
-void MoveCalculator::UpdateCastlings(Board& copy, char figure, size_t old_x, size_t old_y) const {
+void MoveCalculator::UpdateCastlings(Board& board, char figure, size_t old_x, size_t old_y) {
   if (figure == 'K') {
-    copy.UnsetCanCastle(Castling::K);
-    copy.UnsetCanCastle(Castling::Q);
+    board.UnsetCanCastle(Castling::K);
+    board.UnsetCanCastle(Castling::Q);
   } else if (figure == 'k') {
-    copy.UnsetCanCastle(Castling::k);
-    copy.UnsetCanCastle(Castling::q);
+    board.UnsetCanCastle(Castling::k);
+    board.UnsetCanCastle(Castling::q);
   } else if (figure == 'R') {
     if (old_x == 0u && old_y == 0u) {
-      copy.UnsetCanCastle(Castling::Q);
+      board.UnsetCanCastle(Castling::Q);
     } else if (old_x == 7u && old_y == 0u) {
-      copy.UnsetCanCastle(Castling::K);
+      board.UnsetCanCastle(Castling::K);
     }
   } else if (figure == 'r') {
     if (old_x == 0u && old_y == 7u) {
-      copy.UnsetCanCastle(Castling::q);
+      board.UnsetCanCastle(Castling::q);
     } else if (old_x == 7u && old_y == 7u) {
-      copy.UnsetCanCastle(Castling::k);
+      board.UnsetCanCastle(Castling::k);
     }
   }
 }
 
-void MoveCalculator::UpdateEnPassantTargetSquare(Board& copy, char figure, size_t old_x, size_t old_y, size_t new_y) const {
+void MoveCalculator::UpdateEnPassantTargetSquare(Board& board, char figure, size_t old_x, size_t old_y, size_t new_y) {
   if (figure == 'P' && old_y == 1u && new_y == 3u) {
-    copy.SetEnPassantTargetSquare(Square(old_x, 2u));
+    board.SetEnPassantTargetSquare(Square(old_x, 2u));
   } else if (figure == 'p' && old_y == 6u && new_y == 4u) {
-    copy.SetEnPassantTargetSquare(Square(old_x, 5u));
+    board.SetEnPassantTargetSquare(Square(old_x, 5u));
   } else {
-    copy.InvalidateEnPassantTargetSquare();
+    board.InvalidateEnPassantTargetSquare();
   }
 }
 
-bool MoveCalculator::ApplyMoveOnBoard(Board& board, SerializedMove& serialized_move) const {
+void MoveCalculator::ApplyMoveOnBoard(Board& board, const SerializedMove& serialized_move) {
   Move move = serialized_move.ToMove();
   const char figure = board.at(move.old_square.x, move.old_square.y);
   char captured_figure = board.at(move.new_square.x, move.new_square.y);
   if ((captured_figure && !!isupper(captured_figure) == board.WhiteToMove()) ||
       captured_figure == 'K' || captured_figure == 'k' || !figure) {
-    return false;
+    throw InvalidMoveException(serialized_move);
   }
   const bool white_to_move = board.WhiteToMove();
   const Square en_passant_target_square = board.EnPassantTargetSquare();
@@ -184,20 +184,20 @@ bool MoveCalculator::ApplyMoveOnBoard(Board& board, SerializedMove& serialized_m
       en_passant_target_square.x == move.new_square.x &&
       en_passant_target_square.y == move.new_square.y &&
       figure == (white_to_move ? 'P' : 'p');
-  board.at(old_x, old_y) = '\0';
-  board.at(new_x, new_y) = figure;
+  board.at(move.old_square.x, move.old_square.y) = '\0';
+  board.at(move.new_square.x, move.new_square.y) = figure;
   if (en_passant_capture) {
     captured_figure = white_to_move ? 'p' : 'P';
     const size_t captured_pawn_y = white_to_move ? 4u : 3u;
     board.at(en_passant_target_square.x, captured_pawn_y) = 0x0;
   }
   if (figure == 'K') {
-    board.SetKingPosition(true, move.new_square.x, move.new_sqaure.y);
+    board.SetKingPosition(true, move.new_square.x, move.new_square.y);
   } else if (figure == 'k') {
-    board.SetKingPosition(false, move.new_square.x, move.new_sqaure.y);
+    board.SetKingPosition(false, move.new_square.x, move.new_square.y);
   }
-  if (copy.IsKingInCheck(white_to_move)) {
-    return false;
+  if (board.IsKingInCheck(white_to_move)) {
+    throw InvalidMoveException(serialized_move);
   }
   board.ChangeSideToMove();
   if (!white_to_move) {
@@ -208,30 +208,49 @@ bool MoveCalculator::ApplyMoveOnBoard(Board& board, SerializedMove& serialized_m
   } else {
     board.IncrementHalfMoveClock();
   }
-  UpdateCastlings(board, figure, move.old_square,x, move.old_square.y);
+  UpdateCastlings(board, figure, move.old_square.x, move.old_square.y);
   UpdateEnPassantTargetSquare(board, figure, move.old_square.x, move.old_square.y, move.new_square.y);
   if (move.promotion_to) {
     board.at(move.new_square.x, move.new_square.y) = move.promotion_to;
   }
-  return true;
 }
 
 void MoveCalculator::MaybeAddMove(size_t old_x, size_t old_y, size_t new_x, size_t new_y, bool promotion) {
-  Board copy = *board_;
-  if (!ApplyMoveOnBoard(copy, move)) {
+  const char figure = board_->at(old_x, old_y);
+  char captured_figure = board_->at(new_x, new_y);
+  board_->at(new_x, new_y) = figure;
+  board_->at(old_x, old_y) = 0x0;
+  const Square en_passant_target_square = board_->EnPassantTargetSquare();
+  const bool white_to_move = board_->WhiteToMove();
+  const bool en_passant_capture =
+      en_passant_target_square.x == new_x &&
+      en_passant_target_square.y == new_y &&
+      figure == (white_to_move ? 'P' : 'p');
+  size_t captured_pawn_y = 0;
+  if (en_passant_capture) {
+    captured_figure = white_to_move ? 'p' : 'P';
+    captured_pawn_y = white_to_move ? 4u : 3u;
+    board_->at(en_passant_target_square.x, captured_pawn_y) = 0x0;
+  }
+  const bool move_is_valid = !board_->IsKingInCheck(white_to_move);
+  if (en_passant_capture) {
+    board_->at(en_passant_target_square.x, captured_pawn_y) = captured_figure;
+  } else {
+    board_->at(new_x, new_y) = captured_figure;
+  }
+  board_->at(old_x, old_y) = figure;
+
+  if (!move_is_valid) {
     return;
   }
+
   if (promotion) {
-    auto AddPromotionMove = [this, &copy, old_x, old_y, new_x, new_y, captured_figure](char promoted_to) {
-      copy.at(new_x, new_y) = promoted_to;
-      moves_.push_back({copy, old_x, old_y, new_x, new_y, promoted_to, !!captured_figure});
-    };
-    AddPromotionMove(white_to_move ? 'Q' : 'q');
-    AddPromotionMove(white_to_move ? 'R' : 'r');
-    AddPromotionMove(white_to_move ? 'N' : 'n');
-    AddPromotionMove(white_to_move ? 'B' : 'b');
+    moves_.push_back({old_x, old_y, new_x, new_y, white_to_move ? 'B' : 'b'});
+    moves_.push_back({old_x, old_y, new_x, new_y, white_to_move ? 'N' : 'n'});
+    moves_.push_back({old_x, old_y, new_x, new_y, white_to_move ? 'R' : 'r'});
+    moves_.push_back({old_x, old_y, new_x, new_y, white_to_move ? 'Q' : 'q'});
   } else {
-    moves_.push_back({std::move(copy), old_x, old_y, new_x, new_y, 0x0, !!captured_figure});
+    moves_.push_back({old_x, old_y, new_x, new_y, 0x0});
   }
 }
 
@@ -321,29 +340,10 @@ void MoveCalculator::HandleKingMoves(size_t x, size_t y) {
 }
 
 void MoveCalculator::AddCastling(bool white_king, bool king_side) {
-  Board copy = *board_;
   const size_t rank = white_king ? 0u : 7u;
-  const size_t king_old_x = 4u;
-  const size_t king_new_x = king_side ? 6u : 2u;
-  const size_t rook_old_x = king_side ? 7u : 0u;
-  const size_t rook_new_x = king_side ? 5u : 3u;
-  copy.at(king_old_x, rank) = 0x0;
-  copy.at(king_new_x, rank) = white_king ? 'K' : 'k';
-  copy.at(rook_old_x, rank) = 0x0;
-  copy.at(rook_new_x, rank) = white_king ? 'R' : 'r';
-  copy.SetKingPosition(white_king, king_new_x, rank);
-  copy.ChangeSideToMove();
-  copy.IncrementHalfMoveClock();
-  copy.InvalidateEnPassantTargetSquare();
-  if (white_king) {
-    copy.UnsetCanCastle(Castling::Q);
-    copy.UnsetCanCastle(Castling::K);
-  } else {
-    copy.UnsetCanCastle(Castling::q);
-    copy.UnsetCanCastle(Castling::k);
-    copy.IncrementFullMoveNumber();
-  }
-  moves_.push_back({std::move(copy), king_old_x, rank, king_new_x, rank, '\0', false});
+  const size_t old_x = 4u;
+  const size_t new_x = king_side ? 6u : 2u;
+  moves_.push_back({old_x, rank, new_x, rank, 0x0});
 }
 
 bool MoveCalculator::CanCastle(bool white_king, bool king_side) const {
@@ -378,22 +378,22 @@ bool MoveCalculator::CanCastle(bool white_king, bool king_side) const {
   if (board_->IsKingInCheck(white_king)) {
     return false;
   }
-  Board copy = *board_;
-  assert(copy.at(king_staring_x, rank) == (white_king ? 'K' : 'k'));
-  copy.at(king_staring_x, rank) = '\0';
-  copy.at(first_x, rank) = white_king ? 'K' : 'k';
-  copy.SetKingPosition(white_king, first_x, rank);
-  copy.ChangeSideToMove();
-  if (copy.IsKingInCheck(white_king)) {
-    return false;
+  const char king = white_king ? 'K' : 'k';
+  assert(board_->at(king_staring_x, rank) == king);
+  board_->at(king_staring_x, rank) = '\0';
+  board_->at(first_x, rank) = king;
+  board_->SetKingPosition(white_king, first_x, rank);
+  bool result = !board_->IsKingInCheck(white_king);
+  board_->at(first_x, rank) = 0x0;
+  if (result) {
+    board_->at(second_x, rank) = king;
+    board_->SetKingPosition(white_king, second_x, rank);
+    result = !board_->IsKingInCheck(white_king);
+    board_->at(second_x, rank) = 0x0;
   }
-  copy.at(first_x, rank) = '\0';
-  copy.at(second_x, rank) = white_king ? 'K' : 'k';
-  copy.SetKingPosition(white_king, second_x, rank);
-  if (copy.IsKingInCheck(white_king)) {
-    return false;
-  }
-  return true;
+  board_->at(king_staring_x, rank) = king;
+  board_->SetKingPosition(white_king, king_staring_x, rank);
+  return result;
 }
 
 void MoveCalculator::HandleCastlings(size_t x, size_t y) {

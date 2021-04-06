@@ -12,9 +12,9 @@
 #include "PGNCreator.h"
 #include "utils/Test.h"
 
-
 namespace {
 
+/*
 std::vector<Move>::const_iterator FindMove(const std::vector<Move>& moves, const std::string& move_str) {
   assert(move_str.size() == 4u || move_str.size() == 5u);
   return std::find_if(moves.begin(), moves.end(), [move_str](const Move& move) -> bool {
@@ -126,5 +126,5 @@ TEST_PROCEDURE(PGNCreator_result_string) {
 
   TEST_END
 }
-
+*/
 }  // unnamed namespace

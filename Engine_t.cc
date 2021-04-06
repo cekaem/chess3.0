@@ -13,6 +13,7 @@
 
 namespace {
 
+/*
 #define COORDINATES_FROM_STRING(str)\
   const size_t old_x = str[0] - 'a'; \
   const size_t old_y = str[1] - '1'; \
@@ -60,7 +61,6 @@ TEST_PROCEDURE(Engine_exception_is_thrown_when_no_moves) {
 
 TEST_PROCEDURE(Engine_finds_mate_in_three) {
   TEST_START
-  /*
   std::vector<std::tuple<std::string, std::string>> cases = {
     {"1r3bk1/5prp/7P/p7/bQ2N3/1q6/1P1p2R1/1K2RB2 w - - 1 2", "e4f6"}
   };
@@ -72,7 +72,6 @@ TEST_PROCEDURE(Engine_finds_mate_in_three) {
     auto move = engine.CalculateBestMove(board);
     VERIFY_TRUE(MovesAreEqual(move, expected_move)) << "failed for fen \"" << fen << "\"; move: " << move;
   }
-  */
   TEST_END
 }
 
@@ -113,4 +112,5 @@ TEST_PROCEDURE(Engine_finds_mate_in_one) {
   TEST_END
 }
 
+*/
 }  // unnamed namespace

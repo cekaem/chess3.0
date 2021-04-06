@@ -7,6 +7,7 @@
 
 
 int main() {
+  /*
   PGNCreator pgn_creator;
   try {
     Board board("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
@@ -22,5 +23,6 @@ int main() {
     pgn_creator.GameFinished(e.result);
   }
   std::cout << pgn_creator.GetPGN() << std::endl;
+  */
   return 0;
 }
