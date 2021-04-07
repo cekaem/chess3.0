@@ -1,7 +1,8 @@
 #include "Board.h"
 
-#include "utils/Utils.h"
+#include <sstream>
 
+#include "utils/Utils.h"
 
 Square::Square(const std::string& square) {
   x = square[0] - 'a';
@@ -262,6 +263,89 @@ bool Board::IsKingInCheckHelper(const Square& starting_square, bool white, int x
     first_iteration = false;
   }
   return false;
+}
+
+std::string Board::RankToFEN(size_t rank) const {
+  std::string result;
+  size_t blank_squares = 0;
+  for (size_t file = 0; file < 8; ++file) {
+    if (squares_[file][rank] == 0x0) {
+      ++blank_squares;
+    } else {
+      if (blank_squares) {
+        result += static_cast<char>(blank_squares + '0');
+        blank_squares = 0;
+      }
+      result += squares_[file][rank];
+    }
+  }
+  if (blank_squares) {
+    result += static_cast<char>(blank_squares + '0');
+  }
+  if (rank) {
+    result += '/';
+  }
+  else {
+    result += ' ';
+  }
+  return result;
+}
+
+std::string Board::CastlingsToFEN() const {
+  std::string result;
+  bool any_castling_possible = false;
+  if (castlings_[static_cast<size_t>(Castling::K)]) {
+    result += 'K';
+    any_castling_possible = true;
+  }
+  if (castlings_[static_cast<size_t>(Castling::Q)]) {
+    result += 'Q';
+    any_castling_possible = true;
+  }
+  if (castlings_[static_cast<size_t>(Castling::k)]) {
+    result += 'k';
+    any_castling_possible = true;
+  }
+  if (castlings_[static_cast<size_t>(Castling::q)]) {
+    result += 'q';
+    any_castling_possible = true;
+  }
+  if (!any_castling_possible) {
+    result += "-";
+  }
+  result += " ";
+  return result;
+}
+
+std::string Board::EnPassantTargetSquareToFEN() const {
+  std::string result;
+  if (en_passant_target_square_.IsInvalid()) {
+    result += "-";
+  } else {
+    result += en_passant_target_square_.x + 'a';
+    result += en_passant_target_square_.y + '1';
+  }
+  result += ' ';
+  return result;
+}
+
+std::string Board::CreateFEN() const {
+  std::string fen;
+  for (int y = 7; y >= 0; --y) {
+    fen += RankToFEN(static_cast<size_t>(y));
+  }
+  if (white_to_move_) {
+    fen += "w ";
+  } else {
+    fen += "b ";
+  }
+  fen += CastlingsToFEN();
+  fen += EnPassantTargetSquareToFEN();
+  std::stringstream ss;
+  ss << halfmove_clock_ << " ";
+  ss << fullmove_number_;
+  fen += ss.str();
+  return fen;
 }
 
 bool Board::IsKingInCheck(bool white) const {

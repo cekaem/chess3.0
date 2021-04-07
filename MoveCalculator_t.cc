@@ -3,12 +3,28 @@
 #include "utils/Test.h"
 
 #include <cassert>
+#include <cctype>
 #include <iostream>
 #include <sstream>
 #include <utility>
 
 
 namespace {
+
+#define COORDINATES_FROM_STRING(str)\
+  const size_t old_x = str[0] - 'a'; \
+  const size_t old_y = str[1] - '1'; \
+  const size_t new_x = str[2] - 'a'; \
+  const size_t new_y = str[3] - '1';
+
+SerializedMove SerializedMoveFromString(const std::string& str) {
+  COORDINATES_FROM_STRING(str);
+  char promotion_to = 0x0;
+  if (str.length() == 5) {
+    promotion_to = str[4];
+  }
+  return SerializedMove(old_x, old_y, new_x, new_y, promotion_to);
+}
 
 /*
 #pragma GCC diagnostic push
@@ -22,12 +38,6 @@ std::ostream& operator<<(std::ostream& os, const std::vector<Move>& moves) {
 }
 
 #pragma GCC diagnostic pop
-
-#define COORDINATES_FROM_STRING(str)\
-  const size_t old_x = str[0] - 'a'; \
-  const size_t old_y = str[1] - '1'; \
-  const size_t new_x = str[2] - 'a'; \
-  const size_t new_y = str[3] - '1';
 
 bool operator==(const Move& m1, const Move& m2) {
   return m1.old_x == m2.old_x &&
@@ -584,6 +594,26 @@ TEST_PROCEDURE(MoveCalculator_castlings) {
 
 */
 
+TEST_PROCEDURE(MoveCalculator_apply_move) {
+  TEST_START
+  const std::vector<std::tuple<std::string, std::string, char, std::string>> cases = {
+    {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", "e2e4", 0x0, "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1"}
+  };
+
+  MoveCalculator calculator;
+
+  for (const auto& [initial_fen, move_str, expected_captured_figure, expected_fen]: cases) {
+    Board board(initial_fen);
+    SerializedMove move = SerializedMoveFromString(move_str);
+    VERIFY_EQUALS(calculator.ApplyMoveOnBoard(board, move), expected_captured_figure)
+      << "failed for fen " << initial_fen << " and move " << move_str;
+    VERIFY_EQUALS(board.CreateFEN(), expected_fen);
+
+
+  }
+  TEST_END
+}
+
 TEST_PROCEDURE(SerializedMove_constructor) {
   TEST_START
   const std::vector<std::tuple<size_t, size_t, size_t, size_t, char, short>> cases = {
@@ -604,8 +634,15 @@ TEST_PROCEDURE(SerializedMove_constructor) {
   };
 
   for (const auto &[old_x, old_y, new_x, new_y, promotion_to, expected_data]: cases) {
-    SerializedMove move(old_x, old_y, new_x, new_y, promotion_to);
-    VERIFY_EQUALS(move.data, expected_data) << "failed for expected data " << expected_data;
+    SerializedMove serialized_move(old_x, old_y, new_x, new_y, promotion_to);
+    VERIFY_EQUALS(serialized_move.data, expected_data) << "failed for expected data " << expected_data;
+    Move move = serialized_move.ToMove();
+    VERIFY_EQUALS(move.old_square.x, old_x) << "failed for expected data " << expected_data;
+    VERIFY_EQUALS(move.old_square.y, old_y) << "failed for expected data " << expected_data;
+    VERIFY_EQUALS(move.new_square.x, new_x) << "failed for expected data " << expected_data;
+    VERIFY_EQUALS(move.new_square.y, new_y) << "failed for expected data " << expected_data;
+    VERIFY_EQUALS(move.promotion_to, static_cast<char>(toupper(promotion_to)))
+      << "failed for expected data " << expected_data;
   }
   TEST_END
 }

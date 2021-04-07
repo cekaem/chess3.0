@@ -61,7 +61,7 @@ Move SerializedMove::ToMove() const {
   result.new_square.y = (data >> 4) & 7;
   bool promotion = (data >> 3) & 1;
   if (promotion) {
-    char promotion_to = (data >> 2) & 3;
+    char promotion_to = (data >> 1) & 3;
     switch (promotion_to) {
       case 0:
         result.promotion_to = 'N';
@@ -170,7 +170,12 @@ void MoveCalculator::UpdateEnPassantTargetSquare(Board& board, char figure, size
   }
 }
 
-void MoveCalculator::ApplyMoveOnBoard(Board& board, const SerializedMove& serialized_move) {
+void MoveCalculator::RevertMoveOnBoard(Board& board,
+                                       const SerializedMove& serialized_move,
+                                       char captured_figure) {
+}
+
+char MoveCalculator::ApplyMoveOnBoard(Board& board, const SerializedMove& serialized_move) {
   Move move = serialized_move.ToMove();
   const char figure = board.at(move.old_square.x, move.old_square.y);
   char captured_figure = board.at(move.new_square.x, move.new_square.y);
@@ -187,7 +192,7 @@ void MoveCalculator::ApplyMoveOnBoard(Board& board, const SerializedMove& serial
   board.at(move.old_square.x, move.old_square.y) = '\0';
   board.at(move.new_square.x, move.new_square.y) = figure;
   if (en_passant_capture) {
-    captured_figure = white_to_move ? 'p' : 'P';
+    captured_figure = white_to_move ? 'e' : 'E';
     const size_t captured_pawn_y = white_to_move ? 4u : 3u;
     board.at(en_passant_target_square.x, captured_pawn_y) = 0x0;
   }
@@ -213,6 +218,7 @@ void MoveCalculator::ApplyMoveOnBoard(Board& board, const SerializedMove& serial
   if (move.promotion_to) {
     board.at(move.new_square.x, move.new_square.y) = move.promotion_to;
   }
+  return captured_figure;
 }
 
 void MoveCalculator::MaybeAddMove(size_t old_x, size_t old_y, size_t new_x, size_t new_y, bool promotion) {

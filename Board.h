@@ -65,8 +65,8 @@ class Board {
   void UnsetCanCastle(Castling c) { castlings_[static_cast<size_t>(c)] = false; }
   void SetEnPassantTargetSquare(Square s) { en_passant_target_square_ = s; }
   void InvalidateEnPassantTargetSquare() { en_passant_target_square_.Invalidate(); }
-
   void SetKingPosition(bool white, size_t x, size_t y);
+  std::string CreateFEN() const;
  
  private:
   size_t HandleFields(const std::string& fen);
@@ -78,6 +78,9 @@ class Board {
   void HandleFullMoveNumber(const std::string& fen, size_t index);
   bool IsKingInCheckHelper(const Square& starting_square, bool white, int x_offset, int y_offset) const;
   bool IsFigureAtGivenCoordinates(int x, int y, char figure) const;
+  std::string RankToFEN(size_t rank) const;
+  std::string CastlingsToFEN() const;
+  std::string EnPassantTargetSquareToFEN() const;
 
   std::array<std::array<char, 8>, 8> squares_;
   bool white_to_move_;

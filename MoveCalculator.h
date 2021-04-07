@@ -33,7 +33,10 @@ class MoveCalculator {
  public:
   std::vector<SerializedMove> CalculateAllMoves(Board& board);
   std::vector<SerializedMove> CalculateAllMoves(const std::string& fen);
-  static void ApplyMoveOnBoard(Board& board, const SerializedMove& serialized_move);
+  static char ApplyMoveOnBoard(Board& board, const SerializedMove& serialized_move);
+  static void RevertMoveOnBoard(Board& board,
+                                const SerializedMove& serialized_move,
+                                char captured_figure);
 
  private:
   void HandlePawnMoves(size_t x, size_t y);
