@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <cctype>
+#include <cstdlib>
 
 
 std::ostream& operator<<(std::ostream& os, const Move& move) {
@@ -175,6 +176,49 @@ void MoveCalculator::RevertMoveOnBoard(Board& board,
                                        char captured_figure) {
 }
 
+Castling MoveCalculator::IsMoveCastling(const Board& board,
+                                        const Move& move) {
+  if (abs(move.old_square.x - move.new_square.x) != 2u) {
+    return Castling::LAST;
+  }
+  if (move.new_square == Square(6, 0)) {
+    return Castling::K;
+  } else if (move.new_square == Square(2, 0)) {
+    return Castling::Q;
+  } else if (move.new_square == Square(6, 7)) {
+    return Castling::k;
+  } else if (move.new_square == Square(2, 7)) {
+    return Castling::q;
+  }
+  assert(!"Unexpected new square for king");
+  return Castling::LAST;
+}
+
+void MoveCalculator::MaybeUpdateRookPositionAfterCastling(
+    Board& board,
+    const Move& move) {
+  switch (IsMoveCastling(board, move)) {
+    case Castling::K:
+      board.at(7u, 0u) = 0x0;
+      board.at(5u, 0u) = 'R';
+      break;
+    case Castling::Q:
+      board.at(0u, 0u) = 0x0;
+      board.at(3u, 0u) = 'R';
+      break;
+    case Castling::k:
+      board.at(7u, 7u) = 0x0;
+      board.at(5u, 7u) = 'r';
+      break;
+    case Castling::q:
+      board.at(0u, 7u) = 0x0;
+      board.at(3u, 7u) = 'r';
+      break;
+    case Castling::LAST:
+      break;
+  }
+}
+
 char MoveCalculator::ApplyMoveOnBoard(Board& board, const SerializedMove& serialized_move) {
   Move move = serialized_move.ToMove();
   const char figure = board.at(move.old_square.x, move.old_square.y);
@@ -189,17 +233,16 @@ char MoveCalculator::ApplyMoveOnBoard(Board& board, const SerializedMove& serial
       en_passant_target_square.x == move.new_square.x &&
       en_passant_target_square.y == move.new_square.y &&
       figure == (white_to_move ? 'P' : 'p');
-  board.at(move.old_square.x, move.old_square.y) = '\0';
+  board.at(move.old_square.x, move.old_square.y) = 0x0;
   board.at(move.new_square.x, move.new_square.y) = figure;
   if (en_passant_capture) {
     captured_figure = white_to_move ? 'e' : 'E';
     const size_t captured_pawn_y = white_to_move ? 4u : 3u;
     board.at(en_passant_target_square.x, captured_pawn_y) = 0x0;
   }
-  if (figure == 'K') {
-    board.SetKingPosition(true, move.new_square.x, move.new_square.y);
-  } else if (figure == 'k') {
-    board.SetKingPosition(false, move.new_square.x, move.new_square.y);
+  if (figure == 'K' || figure == 'k') {
+    board.SetKingPosition(white_to_move, move.new_square.x, move.new_square.y);
+    MaybeUpdateRookPositionAfterCastling(board, move);
   }
   if (board.IsKingInCheck(white_to_move)) {
     throw InvalidMoveException(serialized_move);
@@ -216,7 +259,8 @@ char MoveCalculator::ApplyMoveOnBoard(Board& board, const SerializedMove& serial
   UpdateCastlings(board, figure, move.old_square.x, move.old_square.y);
   UpdateEnPassantTargetSquare(board, figure, move.old_square.x, move.old_square.y, move.new_square.y);
   if (move.promotion_to) {
-    board.at(move.new_square.x, move.new_square.y) = move.promotion_to;
+    board.at(move.new_square.x, move.new_square.y) =
+      white_to_move ? move.promotion_to : tolower(move.promotion_to);
   }
   return captured_figure;
 }
@@ -224,6 +268,9 @@ char MoveCalculator::ApplyMoveOnBoard(Board& board, const SerializedMove& serial
 void MoveCalculator::MaybeAddMove(size_t old_x, size_t old_y, size_t new_x, size_t new_y, bool promotion) {
   const char figure = board_->at(old_x, old_y);
   char captured_figure = board_->at(new_x, new_y);
+  if (captured_figure && !!isupper(captured_figure) == board_->WhiteToMove()) {
+    return;
+  }
   board_->at(new_x, new_y) = figure;
   board_->at(old_x, old_y) = 0x0;
   const Square en_passant_target_square = board_->EnPassantTargetSquare();
@@ -238,13 +285,20 @@ void MoveCalculator::MaybeAddMove(size_t old_x, size_t old_y, size_t new_x, size
     captured_pawn_y = white_to_move ? 4u : 3u;
     board_->at(en_passant_target_square.x, captured_pawn_y) = 0x0;
   }
+  if (figure == 'K' || figure == 'k') {
+    board_->SetKingPosition(white_to_move, new_x, new_y);
+  }
   const bool move_is_valid = !board_->IsKingInCheck(white_to_move);
   if (en_passant_capture) {
     board_->at(en_passant_target_square.x, captured_pawn_y) = captured_figure;
+    board_->at(new_x, new_y) = 0x0;
   } else {
     board_->at(new_x, new_y) = captured_figure;
   }
   board_->at(old_x, old_y) = figure;
+  if (figure == 'K' || figure == 'k') {
+    board_->SetKingPosition(white_to_move, old_x, old_y);
+  }
 
   if (!move_is_valid) {
     return;

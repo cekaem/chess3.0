@@ -17,7 +17,7 @@ struct SerializedMove {
   SerializedMove(size_t old_x, size_t old_y, size_t new_x, size_t new_y, char promotion);
   Move ToMove() const;
 
-  short data{0};
+  unsigned short data{0};
 };
 
 std::ostream& operator<<(std::ostream& ostr, const SerializedMove& move_serialized);
@@ -53,7 +53,18 @@ class MoveCalculator {
   void HandleMovesHelper(size_t x, size_t y, int x_offset, int y_offset);
 
   static void UpdateCastlings(Board& copy, char figure, size_t old_x, size_t old_y);
-  static void UpdateEnPassantTargetSquare(Board& copy, char figure, size_t old_x, size_t old_y, size_t new_y);
+  static void UpdateEnPassantTargetSquare(
+      Board& copy,
+      char figure,
+      size_t old_x,
+      size_t old_y,
+      size_t new_y);
+  static Castling IsMoveCastling(
+      const Board& board,
+      const Move& serialized_move);
+  static void MaybeUpdateRookPositionAfterCastling(
+      Board& board,
+      const Move& serialized_move);
 
   Board* board_{nullptr};
   std::vector<SerializedMove> moves_;

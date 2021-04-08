@@ -26,11 +26,39 @@ SerializedMove SerializedMoveFromString(const std::string& str) {
   return SerializedMove(old_x, old_y, new_x, new_y, promotion_to);
 }
 
-/*
+bool MovesContainMove(const std::vector<SerializedMove> moves,
+                               const std::string&  move_str) {
+  SerializedMove move = SerializedMoveFromString(move_str);
+  bool result = false;
+  for (const auto& m: moves) {
+    if (m.data == move.data) {
+      result = true;
+      break;
+    }
+  }
+  return result;
+}
+
+#define VERIFY_MOVES_CONTAIN_MOVE(moves, move) \
+  VERIFY_TRUE(MovesContainMove(moves, move)) << "failed for move " << move << " "
+
+#define VERIFY_MOVES_DOES_NOT_CONTAIN_MOVE(moves, move) \
+  VERIFY_FALSE(MovesContainMove(moves, move)) << "failed for move " << move << " "
+
+void VERIFY_MOVES_FROM_SOURCE_SQUARE(const std::vector<SerializedMove> moves,
+                                     const std::string& source_square,
+                                     const std::string& destination_squares) {
+  VERIFY_EQUALS(destination_squares.size() % 2, 0u);
+  for (size_t i = 0; i < destination_squares.length(); i += 2) {
+    const std::string move_str = source_square + destination_squares.substr(i, 2);
+    VERIFY_MOVES_CONTAIN_MOVE(moves, move_str);
+  }
+}
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
 
-std::ostream& operator<<(std::ostream& os, const std::vector<Move>& moves) {
+std::ostream& operator<<(std::ostream& os, const std::vector<SerializedMove>& moves) {
   for (const auto& move: moves) {
     os << move << std::endl;
   }
@@ -39,6 +67,7 @@ std::ostream& operator<<(std::ostream& os, const std::vector<Move>& moves) {
 
 #pragma GCC diagnostic pop
 
+/*
 bool operator==(const Move& m1, const Move& m2) {
   return m1.old_x == m2.old_x &&
          m1.old_y == m2.old_y &&
@@ -79,7 +108,7 @@ bool MovesContainMove(
   return false;
 }
 
-#define VERIFY_MOVES_WITHOUT_CAPTURE(moves, old_square, new_squares) \
+#define VERIFY_MOVES_FROM_SOURCE_SQUARE(moves, old_square, new_squares) \
   VerifyMovesWithoutCapture(moves, old_square, new_squares)
 
 void VerifyMovesWithoutCapture(
@@ -89,7 +118,7 @@ void VerifyMovesWithoutCapture(
   VERIFY_EQUALS(new_squares.length() % 2, 0u);
   for (size_t i = 0; i < new_squares.length(); i += 2) {
     const std::string move = old_square + new_squares.substr(i, 2);
-    VERIFY_TRUE(MovesContainMove(moves, move)) << "missing move " << move;
+    VERIFY_MOVES_CONTAIN_MOVE(moves, move)) << "missing move " << move;
   }
 }
 
@@ -131,7 +160,7 @@ void VerifyMoves(const std::vector<Move>& moves, const std::string& list) {
   std::string move_str;
   while(getline(ss, move_str, ';')) {
     Move move = CreateMoveFromString(move_str);
-    VERIFY_TRUE(MovesContainMove(moves, move)) << "didn't found move: " << move_str;
+    VERIFY_MOVES_CONTAIN_MOVE(moves, move)) << "didn't found move: " << move_str;
   }
 }
 
@@ -155,127 +184,6 @@ Board FindBoardForMove(const std::vector<Move>& moves, const std::string move) {
 
 // =========================================================================
 
-TEST_PROCEDURE(MoveCalculator_bishop_moves) {
-  TEST_START
-  Board board("k7/8/8/8/3B4/8/8/7K w - - 0 29");
-  MoveCalculator calculator;
-  auto moves = calculator.CalculateAllMoves(board);
-  VERIFY_EQUALS(moves.size(), 16u);
-  VERIFY_MOVES_WITHOUT_CAPTURE(moves, "d4", "c3b2a1c5b6a7e5f6g7h8e3f2g1");
-  VERIFY_MOVES_WITHOUT_CAPTURE(moves, "h1", "g1g2h2");
-  TEST_END
-}
-
-TEST_PROCEDURE(MoveCalculator_rook_moves) {
-  TEST_START
-  Board board("k7/8/8/8/4r3/8/8/7K b q c7 1 15");
-  MoveCalculator calculator;
-  auto moves = calculator.CalculateAllMoves(board);
-  VERIFY_EQUALS(moves.size(), 17u);
-  VERIFY_MOVES_WITHOUT_CAPTURE(moves, "e4", "e3e2e1e5e6e7e8d4c4b4a4f4g4h4");
-  VERIFY_MOVES_WITHOUT_CAPTURE(moves, "a8", "a7b7b8");
-  TEST_END
-}
-
-TEST_PROCEDURE(MoveCalculator_queen_moves) {
-  TEST_START
-  Board board("1k6/8/8/3q4/8/8/7K/8 b - - 1 20");
-  MoveCalculator calculator;
-  auto moves = calculator.CalculateAllMoves(board);
-  VERIFY_EQUALS(moves.size(), 32u);
-  VERIFY_MOVES_WITHOUT_CAPTURE(moves, "d5", "c6b7a8d6d7d8e6f7g8e5f5g5h5e4f3g2h1d4d3d2d1c4b3a2c5b5a5");
-  VERIFY_MOVES_WITHOUT_CAPTURE(moves, "b8", "a8a7b7c7c8");
-  TEST_END
-}
-
-TEST_PROCEDURE(MoveCalculator_knight_moves) {
-  TEST_START
-  Board board("1k6/8/8/8/4N3/8/7K/8 w - - 0 29");
-  MoveCalculator calculator;
-  auto moves = calculator.CalculateAllMoves(board);
-  VERIFY_EQUALS(moves.size(), 13u);
-  VERIFY_MOVES_WITHOUT_CAPTURE(moves, "e4", "g5g3f2d2c3c5d6f6");
-  VERIFY_MOVES_WITHOUT_CAPTURE(moves, "h2", "h1g1g2g3h3");
-  TEST_END
-}
-
-TEST_PROCEDURE(MoveCalculator_pawn_moves) {
-  TEST_START
-  {
-    Board board("8/p1p5/1pP5/3k4/8/3PK2p/4PP1P/8 w KQkq - 0 17");
-    MoveCalculator calculator;
-    auto moves = calculator.CalculateAllMoves(board);
-    VERIFY_EQUALS(moves.size(), 6u);
-    VERIFY_TRUE(MovesContainMove(moves, "d3d4"));
-    VERIFY_TRUE(MovesContainMove(moves, "f2f3"));
-    VERIFY_TRUE(MovesContainMove(moves, "f2f4"));
-  }
-  {
-    Board board("8/p1p5/1pP5/3k4/8/3PK2p/4PP1P/8 b KQkq - 0 17");
-    MoveCalculator calculator;
-    auto moves = calculator.CalculateAllMoves(board);
-    VERIFY_EQUALS(moves.size(), 8u);
-    VERIFY_TRUE(MovesContainMove(moves, "a7a6"));
-    VERIFY_TRUE(MovesContainMove(moves, "a7a5"));
-    VERIFY_TRUE(MovesContainMove(moves, "b6b5"));
-  }
-  {
-    Board board("K4b2/4P3/k7/8/8/8/5p2/4R3 w - - 0 17");
-    MoveCalculator calculator;
-    auto moves = calculator.CalculateAllMoves(board);
-    VERIFY_EQUALS(moves.size(), 21u);
-    VERIFY_TRUE(MovesContainMove(moves, "e7e8", false, 'Q'));
-    VERIFY_TRUE(MovesContainMove(moves, "e7e8", false, 'R'));
-    VERIFY_TRUE(MovesContainMove(moves, "e7e8", false, 'B'));
-    VERIFY_TRUE(MovesContainMove(moves, "e7e8", false, 'N'));
-    VERIFY_TRUE(MovesContainMove(moves, "e7f8", true, 'Q'));
-    VERIFY_TRUE(MovesContainMove(moves, "e7f8", true, 'R'));
-    VERIFY_TRUE(MovesContainMove(moves, "e7f8", true, 'B'));
-    VERIFY_TRUE(MovesContainMove(moves, "e7f8", true, 'N'));
-  }
-  {
-    Board board("K4b2/4P3/k7/8/8/8/5p2/4R3 b - - 0 17");
-    MoveCalculator calculator;
-    auto moves = calculator.CalculateAllMoves(board);
-    VERIFY_EQUALS(moves.size(), 14u);
-    VERIFY_TRUE(MovesContainMove(moves, "f2f1", false, 'q'));
-    VERIFY_TRUE(MovesContainMove(moves, "f2f1", false, 'r'));
-    VERIFY_TRUE(MovesContainMove(moves, "f2f1", false, 'b'));
-    VERIFY_TRUE(MovesContainMove(moves, "f2f1", false, 'n'));
-    VERIFY_TRUE(MovesContainMove(moves, "f2e1", true, 'q'));
-    VERIFY_TRUE(MovesContainMove(moves, "f2e1", true, 'r'));
-    VERIFY_TRUE(MovesContainMove(moves, "f2e1", true, 'b'));
-    VERIFY_TRUE(MovesContainMove(moves, "f2e1", true, 'n'));
-  }
-  {
-    Board board("K7/8/k2n4/4Pp2/1Pp5/3N4/8/8 b - b3 0 17");
-    MoveCalculator calculator;
-    auto moves = calculator.CalculateAllMoves(board);
-    VERIFY_EQUALS(moves.size(), 12u);
-    VERIFY_TRUE(MovesContainMove(moves, "c4b3", true));
-    VERIFY_TRUE(MovesContainMove(moves, "c4d3", true));
-  }
-  {
-    Board board("K7/8/k2n4/4Pp2/1Pp5/3N4/8/8 w - f6 0 17");
-    MoveCalculator calculator;
-    auto moves = calculator.CalculateAllMoves(board);
-    VERIFY_EQUALS(moves.size(), 11u);
-    VERIFY_TRUE(MovesContainMove(moves, "e5d6", true));
-    VERIFY_TRUE(MovesContainMove(moves, "e5f6", true));
-  }
-  {
-    Board board("8/8/8/4rPpK/8/7k/8/8 w - g6 0 17");
-    MoveCalculator calculator;
-    auto moves = calculator.CalculateAllMoves(board);
-    VERIFY_EQUALS(moves.size(), 4u);
-    VERIFY_TRUE(MovesContainMove(moves, "f5f6"));
-    VERIFY_TRUE(MovesContainMove(moves, "h5g6"));
-    VERIFY_TRUE(MovesContainMove(moves, "h5h6"));
-    VERIFY_TRUE(MovesContainMove(moves, "h5g5", true));
-  }
-  TEST_END
-}
-
 TEST_PROCEDURE(MoveCalculator_various_cases) {
   TEST_START
   {
@@ -292,7 +200,7 @@ TEST_PROCEDURE(MoveCalculator_various_cases) {
     MoveCalculator calculator;
     auto moves = calculator.CalculateAllMoves(board);
     VERIFY_EQUALS(moves.size(), 12u);
-    VERIFY_MOVES_WITHOUT_CAPTURE(moves, "e6", "f6f5e5d5d6d7e7f7");
+    VERIFY_MOVES_FROM_SOURCE_SQUARE(moves, "e6", "f6f5e5d5d6d7e7f7");
     VERIFY_MOVES(moves, "g2-g1q;g2-g1r;g2-g1n;g2-g1b");
   }
   {
@@ -320,72 +228,7 @@ TEST_PROCEDURE(MoveCalculator_various_cases) {
     MoveCalculator calculator;
     auto moves = calculator.CalculateAllMoves(board);
     VERIFY_EQUALS(moves.size(), 15u);
-    VERIFY_TRUE(MovesContainMove(moves, "f5e6", true));
-  }
-  TEST_END
-}
-
-TEST_PROCEDURE(MoveCalculator_full_move_number) {
-  TEST_START
-  {
-    Board board("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 7");
-    MoveCalculator calculator;
-    auto moves = calculator.CalculateAllMoves(board);
-    VERIFY_EQUALS(moves.size(), 20u);
-    for (const auto& move: moves) {
-      VERIFY_EQUALS(move.board.FullMoveNumber(), 7u) << "failed for move: " << move;
-    }
-  }
-  {
-    Board board("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq - 0 7");
-    MoveCalculator calculator;
-    auto moves = calculator.CalculateAllMoves(board);
-    VERIFY_EQUALS(moves.size(), 20u);
-    for (const auto& move: moves) {
-      VERIFY_EQUALS(move.board.FullMoveNumber(), 8u) << "failed for move: " << move;
-    }
-  }
-  {
-    Board board("r3kbnr/pppppp1p/8/8/8/8/P2PPPPP/RNBQK2R w KQkq - 0 99");
-    MoveCalculator calculator;
-    auto moves = calculator.CalculateAllMoves(board);
-    VERIFY_EQUALS(moves.size(), 23u);
-    for (const auto& move: moves) {
-      VERIFY_EQUALS(move.board.FullMoveNumber(), 99u) << "failed for move: " << move;
-    }
-  }
-  {
-    Board board("r3kbnr/pppppp1p/8/8/8/8/P2PPPPP/RNBQK2R b KQkq - 0 99");
-    MoveCalculator calculator;
-    auto moves = calculator.CalculateAllMoves(board);
-    VERIFY_EQUALS(moves.size(), 23u);
-    for (const auto& move: moves) {
-      VERIFY_EQUALS(move.board.FullMoveNumber(), 100u) << "failed for move: " << move;
-    }
-  }
-  TEST_END
-}
-
-TEST_PROCEDURE(MoveCalculator_king_moves) {
-  TEST_START
-  {
-    Board board("8/8/8/8/8/7k/8/7K w - - 0 29");
-    MoveCalculator calculator;
-    auto moves = calculator.CalculateAllMoves(board);
-    VERIFY_EQUALS(moves.size(), 1u);
-    VERIFY_TRUE(MovesContainMove(moves, "h1g1"));
-    board.ChangeSideToMove();
-    moves = calculator.CalculateAllMoves(board);
-    VERIFY_EQUALS(moves.size(), 3u);
-    VERIFY_MOVES_WITHOUT_CAPTURE(moves, "h3", "h4g4g3");
-  }
-  {
-    Board board("2R5/1N1k4/8/8/5K2/8/8/8 b - - 0 29");
-    MoveCalculator calculator;
-    auto moves = calculator.CalculateAllMoves(board);
-    VERIFY_EQUALS(moves.size(), 3u);
-    VERIFY_MOVES_WITHOUT_CAPTURE(moves, "d7", "e7e6");
-    VERIFY_TRUE(MovesContainMove(moves, "d7c8", true));
+    VERIFY_MOVES_CONTAIN_MOVE(moves, "f5e6", true));
   }
   TEST_END
 }
@@ -457,37 +300,6 @@ TEST_PROCEDURE(MoveCalculator_castlings_reset) {
   TEST_END
 }
 
-TEST_PROCEDURE(MoveCalculator_figures_placement_after_move) {
-  TEST_START
-  const std::vector<std::tuple<std::string, std::string, std::string>> cases = {
-    {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", "b1c3", "rnbqkbnr/pppppppp/8/8/8/2N5/PPPPPPPP/R1BQKBNR"},
-    {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", "e2e4", "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR"},
-    {"8/6P1/8/8/2K5/5k2/8/8 w - - 0 1", "g7g8Q", "6Q1/8/8/8/2K5/5k2/8/8"},
-    {"8/6P1/8/8/2K5/5k2/8/8 w - - 0 1", "g7g8N", "6N1/8/8/8/2K5/5k2/8/8"},
-    {"8/8/8/3K1Pp1/8/8/7k/8 w - g6 0 1", "f5g6", "8/8/6P1/3K4/8/8/7k/8"},
-    {"r3k2r/8/8/8/8/8/8/R3K2R b KQkq - 0 1", "e8g8", "r4rk1/8/8/8/8/8/8/R3K2R"},
-    {"r3k2r/8/8/8/8/8/8/R3K2R b KQkq - 0 1", "e8c8", "2kr3r/8/8/8/8/8/8/R3K2R"},
-    {"3k1K2/8/8/8/8/8/5p2/6Q1 b - - 0 1", "f2g1r", "3k1K2/8/8/8/8/8/8/6r1"},
-    {"8/6k1/2n5/8/3K4/8/6B1/8 w - - 0 1", "g2c6", "8/6k1/2B5/8/3K4/8/8/8"}
-  };
-
-  MoveCalculator calculator;
-
-  for (const auto&[fen, move, placement_after_move]: cases) {
-    auto moves = calculator.CalculateAllMoves(fen);
-    Board board_after_move = FindBoardForMove(moves, move);
-    const std::string new_fen = placement_after_move + " w - - 0 1";
-    Board expected_board(new_fen);
-    for (size_t x = 0; x < 8u; ++x) {
-      for (size_t y = 0; y < 8u; ++y) {
-        VERIFY_EQUALS(board_after_move.at(x, y), expected_board.at(x, y)) \
-          << "failed for fen \"" << fen << "\" at (" << x << ", " << y << ")";
-      }
-    }
-  }
-  TEST_END
-}
-
 TEST_PROCEDURE(MoveCalculator_side_to_move_after_move) {
   TEST_START
   std::vector<std::string> fens = {
@@ -541,6 +353,154 @@ TEST_PROCEDURE(MoveCalculator_en_passant_target_square_after_move) {
   TEST_END
 }
 
+*/
+
+TEST_PROCEDURE(MoveCalculator_bishop_moves) {
+  TEST_START
+  Board board("k7/8/8/8/3B4/8/8/7K w - - 0 29");
+  MoveCalculator calculator;
+  auto moves = calculator.CalculateAllMoves(board);
+  VERIFY_EQUALS(moves.size(), 16u);
+  VERIFY_MOVES_FROM_SOURCE_SQUARE(moves, "d4", "c3b2a1c5b6a7e5f6g7h8e3f2g1");
+  VERIFY_MOVES_FROM_SOURCE_SQUARE(moves, "h1", "g1g2h2");
+  TEST_END
+}
+
+TEST_PROCEDURE(MoveCalculator_rook_moves) {
+  TEST_START
+  Board board("k7/8/8/8/4r3/8/8/7K b q c7 1 15");
+  MoveCalculator calculator;
+  auto moves = calculator.CalculateAllMoves(board);
+  VERIFY_EQUALS(moves.size(), 17u);
+  VERIFY_MOVES_FROM_SOURCE_SQUARE(moves, "e4", "e3e2e1e5e6e7e8d4c4b4a4f4g4h4");
+  VERIFY_MOVES_FROM_SOURCE_SQUARE(moves, "a8", "a7b7b8");
+  TEST_END
+}
+
+TEST_PROCEDURE(MoveCalculator_queen_moves) {
+  TEST_START
+  Board board("1k6/8/8/3q4/8/8/7K/8 b - - 1 20");
+  MoveCalculator calculator;
+  auto moves = calculator.CalculateAllMoves(board);
+  VERIFY_EQUALS(moves.size(), 32u);
+  VERIFY_MOVES_FROM_SOURCE_SQUARE(moves, "d5", "c6b7a8d6d7d8e6f7g8e5f5g5h5e4f3g2h1d4d3d2d1c4b3a2c5b5a5");
+  VERIFY_MOVES_FROM_SOURCE_SQUARE(moves, "b8", "a8a7b7c7c8");
+  TEST_END
+}
+
+TEST_PROCEDURE(MoveCalculator_knight_moves) {
+  TEST_START
+  Board board("1k6/8/8/8/4N3/8/7K/8 w - - 0 29");
+  MoveCalculator calculator;
+  auto moves = calculator.CalculateAllMoves(board);
+  VERIFY_EQUALS(moves.size(), 13u);
+  VERIFY_MOVES_FROM_SOURCE_SQUARE(moves, "e4", "g5g3f2d2c3c5d6f6");
+  VERIFY_MOVES_FROM_SOURCE_SQUARE(moves, "h2", "h1g1g2g3h3");
+  TEST_END
+}
+
+TEST_PROCEDURE(MoveCalculator_pawn_moves) {
+  TEST_START
+  {
+    Board board("8/p1p5/1pP5/3k4/8/3PK2p/4PP1P/8 w KQkq - 0 17");
+    MoveCalculator calculator;
+    auto moves = calculator.CalculateAllMoves(board);
+    VERIFY_EQUALS(moves.size(), 6u);
+    VERIFY_MOVES_CONTAIN_MOVE(moves, "d3d4");
+    VERIFY_MOVES_CONTAIN_MOVE(moves, "d3d4");
+    VERIFY_MOVES_CONTAIN_MOVE(moves, "f2f3");
+    VERIFY_MOVES_CONTAIN_MOVE(moves, "f2f4");
+  }
+  {
+    Board board("8/p1p5/1pP5/3k4/8/3PK2p/4PP1P/8 b KQkq - 0 17");
+    MoveCalculator calculator;
+    auto moves = calculator.CalculateAllMoves(board);
+    VERIFY_EQUALS(moves.size(), 8u);
+    VERIFY_MOVES_CONTAIN_MOVE(moves, "a7a6");
+    VERIFY_MOVES_CONTAIN_MOVE(moves, "a7a5");
+    VERIFY_MOVES_CONTAIN_MOVE(moves, "b6b5");
+  }
+  {
+    Board board("K4b2/4P3/k7/8/8/8/5p2/4R3 w - - 0 17");
+    MoveCalculator calculator;
+    auto moves = calculator.CalculateAllMoves(board);
+    VERIFY_EQUALS(moves.size(), 21u);
+    VERIFY_MOVES_CONTAIN_MOVE(moves, "e7e8Q");
+    VERIFY_MOVES_CONTAIN_MOVE(moves, "e7e8R");
+    VERIFY_MOVES_CONTAIN_MOVE(moves, "e7e8B");
+    VERIFY_MOVES_CONTAIN_MOVE(moves, "e7e8N");
+    VERIFY_MOVES_CONTAIN_MOVE(moves, "e7f8Q");
+    VERIFY_MOVES_CONTAIN_MOVE(moves, "e7f8R");
+    VERIFY_MOVES_CONTAIN_MOVE(moves, "e7f8B");
+    VERIFY_MOVES_CONTAIN_MOVE(moves, "e7f8N");
+  }
+  {
+    Board board("K4b2/4P3/k7/8/8/8/5p2/4R3 b - - 0 17");
+    MoveCalculator calculator;
+    auto moves = calculator.CalculateAllMoves(board);
+    VERIFY_EQUALS(moves.size(), 14u);
+    VERIFY_MOVES_CONTAIN_MOVE(moves, "f2f1q");
+    VERIFY_MOVES_CONTAIN_MOVE(moves, "f2f1r");
+    VERIFY_MOVES_CONTAIN_MOVE(moves, "f2f1b");
+    VERIFY_MOVES_CONTAIN_MOVE(moves, "f2f1n");
+    VERIFY_MOVES_CONTAIN_MOVE(moves, "f2e1q");
+    VERIFY_MOVES_CONTAIN_MOVE(moves, "f2e1r");
+    VERIFY_MOVES_CONTAIN_MOVE(moves, "f2e1b");
+    VERIFY_MOVES_CONTAIN_MOVE(moves, "f2e1n");
+  }
+  {
+    Board board("K7/8/k2n4/4Pp2/1Pp5/3N4/8/8 b - b3 0 17");
+    MoveCalculator calculator;
+    auto moves = calculator.CalculateAllMoves(board);
+    VERIFY_EQUALS(moves.size(), 12u);
+    VERIFY_MOVES_CONTAIN_MOVE(moves, "c4b3");
+    VERIFY_MOVES_CONTAIN_MOVE(moves, "c4d3");
+  }
+  {
+    Board board("K7/8/k2n4/4Pp2/1Pp5/3N4/8/8 w - f6 0 17");
+    MoveCalculator calculator;
+    auto moves = calculator.CalculateAllMoves(board);
+    VERIFY_EQUALS(moves.size(), 11u);
+    VERIFY_MOVES_CONTAIN_MOVE(moves, "e5d6");
+    VERIFY_MOVES_CONTAIN_MOVE(moves, "e5f6");
+  }
+  {
+    Board board("8/8/8/4rPpK/8/7k/8/8 w - g6 0 17");
+    MoveCalculator calculator;
+    auto moves = calculator.CalculateAllMoves(board);
+    VERIFY_EQUALS(moves.size(), 4u);
+    VERIFY_MOVES_CONTAIN_MOVE(moves, "f5f6");
+    VERIFY_MOVES_CONTAIN_MOVE(moves, "h5g6");
+    VERIFY_MOVES_CONTAIN_MOVE(moves, "h5h6");
+    VERIFY_MOVES_CONTAIN_MOVE(moves, "h5g5");
+  }
+  TEST_END
+}
+
+TEST_PROCEDURE(MoveCalculator_king_moves) {
+  TEST_START
+  {
+    Board board("8/8/8/8/8/7k/8/7K w - - 0 29");
+    MoveCalculator calculator;
+    auto moves = calculator.CalculateAllMoves(board);
+    VERIFY_EQUALS(moves.size(), 1u);
+    VERIFY_MOVES_CONTAIN_MOVE(moves, "h1g1");
+    board.ChangeSideToMove();
+    moves = calculator.CalculateAllMoves(board);
+    VERIFY_EQUALS(moves.size(), 3u);
+    VERIFY_MOVES_FROM_SOURCE_SQUARE(moves, "h3", "h4g4g3");
+  }
+  {
+    Board board("2R5/1N1k4/8/8/5K2/8/8/8 b - - 0 29");
+    MoveCalculator calculator;
+    auto moves = calculator.CalculateAllMoves(board);
+    VERIFY_EQUALS(moves.size(), 3u);
+    VERIFY_MOVES_FROM_SOURCE_SQUARE(moves, "d7", "e7e6");
+    VERIFY_MOVES_CONTAIN_MOVE(moves, "d7c8");
+  }
+  TEST_END
+}
+
 TEST_PROCEDURE(MoveCalculator_castlings) {
   TEST_START
   const std::vector<std::tuple<std::string, bool, bool>> cases = {
@@ -579,25 +539,80 @@ TEST_PROCEDURE(MoveCalculator_castlings) {
     const std::string king_side_castling = white_king ? "e1g1" : "e8g8";
     const std::string queen_side_castling = white_king ? "e1c1" : "e8c8";
     if (can_castle_king_side) {
-      VERIFY_TRUE(MovesContainMove(moves, king_side_castling)) << "failed for fen: " << fen;
+      VERIFY_MOVES_CONTAIN_MOVE(moves, king_side_castling) << "failed for fen: " << fen;
     } else {
-      VERIFY_FALSE(MovesContainMove(moves, king_side_castling)) << "failed for fen: " << fen;
+      VERIFY_MOVES_DOES_NOT_CONTAIN_MOVE(moves, king_side_castling) << "failed for fen: " << fen;
     }
     if (can_castle_queen_side) {
-      VERIFY_TRUE(MovesContainMove(moves, queen_side_castling)) << "failed for fen: " << fen;
+      VERIFY_MOVES_CONTAIN_MOVE(moves, queen_side_castling) << "failed for fen: " << fen;
     } else {
-      VERIFY_FALSE(MovesContainMove(moves, queen_side_castling)) << "failed for fen: " << fen;
+      VERIFY_MOVES_DOES_NOT_CONTAIN_MOVE(moves, queen_side_castling) << "failed for fen: " << fen;
     }
   }
   TEST_END
 }
 
-*/
+TEST_PROCEDURE(MoveCalculator_board_after_move) {
+  TEST_START
+  const std::vector<std::tuple<std::string, std::string, std::string>> cases = {
+    {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", "b1c3", "rnbqkbnr/pppppppp/8/8/8/2N5/PPPPPPPP/R1BQKBNR b KQkq - 1 1"},
+    {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", "e2e4", "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1"},
+    {"8/6P1/8/8/2K5/5k2/8/8 w - - 0 1", "g7g8Q", "6Q1/8/8/8/2K5/5k2/8/8 b - - 0 1"},
+    {"8/6P1/8/8/2K5/5k2/8/8 w - - 0 1", "g7g8N", "6N1/8/8/8/2K5/5k2/8/8 b - - 0 1"},
+    {"8/8/8/3K1Pp1/8/8/7k/8 w - g6 0 1", "f5g6", "8/8/6P1/3K4/8/8/7k/8 b - - 0 1"},
+    {"r3k2r/8/8/8/8/8/8/R3K2R b KQkq - 0 1", "e8g8", "r4rk1/8/8/8/8/8/8/R3K2R w KQ - 1 2"},
+    {"r3k2r/8/8/8/8/8/8/R3K2R b KQkq - 0 1", "e8c8", "2kr3r/8/8/8/8/8/8/R3K2R w KQ - 1 2"},
+    {"r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1", "e1g1", "r3k2r/8/8/8/8/8/8/R4RK1 b kq - 1 1"},
+    {"r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1", "e1c1", "r3k2r/8/8/8/8/8/8/2KR3R b kq - 1 1"},
+    {"3k1K2/8/8/8/8/8/5p2/6Q1 b - - 0 1", "f2g1r", "3k1K2/8/8/8/8/8/8/6r1 w - - 0 2"},
+    {"8/6k1/2n5/8/3K4/8/6B1/8 w - - 0 1", "g2c6", "8/6k1/2B5/8/3K4/8/8/8 b - - 0 1"}
+  };
+
+  for (const auto&[fen_before_move, move_str, fen_after_move]: cases) {
+    Board board(fen_before_move);
+    SerializedMove move = SerializedMoveFromString(move_str);
+    MoveCalculator::ApplyMoveOnBoard(board, move);
+    VERIFY_EQUALS(board.CreateFEN(), fen_after_move)
+        << "failed for fen " << fen_before_move << " and move " << move_str;
+  }
+  TEST_END
+}
+
+TEST_PROCEDURE(MoveCalculator_full_move_number) {
+  TEST_START
+  const std::vector<std::tuple<std::string, unsigned, unsigned>> cases = {
+    {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 7", 20u, 7u},
+    {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq - 0 7", 20u, 8u},
+    {"r3kbnr/pppppp1p/8/8/8/8/P2PPPPP/RNBQK2R w KQkq - 0 99", 23u, 99u},
+    {"r3kbnr/pppppp1p/8/8/8/8/P2PPPPP/RNBQK2R b KQkq - 0 99", 23u, 100u}
+  };
+
+  MoveCalculator calculator;
+
+  for (const auto& [fen, expected_number_of_moves, expected_full_move_number]: cases) {
+    Board board(fen);
+    auto moves = calculator.CalculateAllMoves(board);
+    VERIFY_EQUALS(moves.size(), expected_number_of_moves);
+    for (const auto& move: moves) {
+      //const char captured_figure = calculator.ApplyMoveOnBoard(board, move);
+      Board board(fen);
+      calculator.ApplyMoveOnBoard(board, move);
+      VERIFY_EQUALS(board.FullMoveNumber(), expected_full_move_number)
+          << "failed for fen " << fen << " and move " << move;
+      //calculator.RevertMoveOnBoard(board, move, captured_figure);
+    }
+  }
+  TEST_END
+}
 
 TEST_PROCEDURE(MoveCalculator_apply_move) {
   TEST_START
   const std::vector<std::tuple<std::string, std::string, char, std::string>> cases = {
-    {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", "e2e4", 0x0, "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1"}
+    {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", "e2e4", 0x0,
+     "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1"},
+    {"8/3k4/6p1/5P2/8/8/5K2/8 b - - 0 1", "g6f5", 'P', "8/3k4/8/5p2/8/8/5K2/8 w - - 0 2"},
+    {"8/3k4/8/1pP5/8/8/5K2/8 w - b6 0 1", "c5b6", 'e', "8/3k4/1P6/8/8/8/5K2/8 b - - 0 1"},
+    {"8/3k2p1/8/8/8/8/5K2/8 b - b3 5 76", "g7g5", 0x0, "8/3k4/8/6p1/8/8/5K2/8 w - g6 0 77"}
   };
 
   MoveCalculator calculator;
@@ -616,7 +631,7 @@ TEST_PROCEDURE(MoveCalculator_apply_move) {
 
 TEST_PROCEDURE(SerializedMove_constructor) {
   TEST_START
-  const std::vector<std::tuple<size_t, size_t, size_t, size_t, char, short>> cases = {
+  const std::vector<std::tuple<size_t, size_t, size_t, size_t, char, unsigned short>> cases = {
     {0, 0, 0, 0, 0x0, 0},
     {1, 0, 0, 0, 0x0, 0x2000},
     {0, 2, 0, 0, 0x0, 0x0800},
@@ -630,7 +645,8 @@ TEST_PROCEDURE(SerializedMove_constructor) {
     {0, 0, 0, 0, 'b', 0x000a},
     {0, 0, 0, 0, 'N', 0x0008},
     {0, 0, 0, 0, 'n', 0x0008},
-    {2, 7, 1, 5, 'q', 0x5cde}
+    {2, 7, 1, 5, 'q', 0x5cde},
+    {4, 1, 4, 3, 0x0, 0x8630}
   };
 
   for (const auto &[old_x, old_y, new_x, new_y, promotion_to, expected_data]: cases) {
