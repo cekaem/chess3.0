@@ -46,15 +46,15 @@ class Board {
  public:
   Board(const std::string& fen);
   Board(const Board& other) = delete;
-  Board(Board&& other) = delete;
   Board& operator=(const Board& board) = delete;
+  Board Clone() const;
   bool IsKingInCheck(bool white) const;
   char& at(size_t x, size_t y) { return squares_[x][y]; }
   char& at(const Square& square) { return squares_[square.x][square.y]; }
   char at(const Square& square) const { return squares_[square.x][square.y]; }
   char at(size_t x, size_t y) const { return squares_[x][y]; }
   char at(const char* square) const;
-  bool CanCastle(Castling c) const { return castlings_[static_cast<size_t>(c)]; }
+  bool CanCastle(Castling c) const { return castlings_ & (1 << static_cast<size_t>(c)); }
   Square EnPassantTargetSquare() const { return en_passant_target_square_; }
   Square KingPosition(bool white) const;
   unsigned HalfMoveClock() const { return halfmove_clock_; }
@@ -65,13 +65,15 @@ class Board {
   void ResetHalfMoveClock() { halfmove_clock_ = 0u; }
   void IncrementHalfMoveClock() { ++halfmove_clock_; }
   void SetHalfMoveClock(unsigned value) { halfmove_clock_ = value; }
-  void UnsetCanCastle(Castling c) { castlings_[static_cast<size_t>(c)] = false; }
+  void UnsetCanCastle(Castling c) { castlings_ &=  ~(1 << static_cast<size_t>(c)); }
   void SetEnPassantTargetSquare(Square s) { en_passant_target_square_ = s; }
   void InvalidateEnPassantTargetSquare() { en_passant_target_square_.Invalidate(); }
   void SetKingPosition(bool white, size_t x, size_t y);
   std::string CreateFEN() const;
  
  private:
+  Board() {}
+  Board(Board&& other) = default;
   size_t HandleFields(const std::string& fen);
   void HandleSingleRank(const std::string& fen, const std::string& rank_str, size_t rank);
   size_t HandleSideToMove(const std::string& fen, size_t index);
@@ -92,9 +94,10 @@ class Board {
   Square white_king_position_;
   Square black_king_position_;
   Square en_passant_target_square_;
-  bool castlings_[static_cast<size_t>(Castling::LAST)];
+  char castlings_;
 };
 
 bool operator==(const Board& b1, const Board& b2);
+std::ostream& operator<<(std::ostream& ostr, const Board& board);
 
 #endif  // BOARD_H

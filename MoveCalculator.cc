@@ -171,24 +171,6 @@ void MoveCalculator::UpdateEnPassantTargetSquare(Board& board, char figure, size
   }
 }
 
-void MoveCalculator::RevertMoveOnBoard(Board& board,
-                                       const RevertMoveData& data) {
-  const Move move = data.move.ToMove();
-  board.ChangeSideToMove();
-  const bool white_to_move = board.WhiteToMove();
-  board.at(move.old_square) = board.at(move.new_square);
-  if (data.captured_figure == 'E') {
-    if (white_to_move) {
-      board.at(move.new_square.x, 5u) = 'p';
-    } else {
-      board.at(move.new_square.x, 4u) = 'P';
-    }
-  }
-  board.SetEnPassantTargetSquare(data.en_passant_target_square);
-  board.SetHalfMoveClock(data.halfmove_clock);
-  board.at(move.new_square) = data.captured_figure;
-}
-
 Castling MoveCalculator::IsMoveCastling(const Board& board,
                                         const Move& move) {
   if (abs(move.old_square.x - move.new_square.x) != 2u) {
@@ -232,14 +214,16 @@ void MoveCalculator::MaybeUpdateRookPositionAfterCastling(
   }
 }
 
-RevertMoveData MoveCalculator::ApplyMoveOnBoard(Board& board, const SerializedMove& serialized_move) {
+void MoveCalculator::ApplyMoveOnBoard(Board& board, const SerializedMove& serialized_move) {
   Move move = serialized_move.ToMove();
   const char figure = board.at(move.old_square.x, move.old_square.y);
   char captured_figure = board.at(move.new_square.x, move.new_square.y);
+#ifdef _DEBUG_
   if ((captured_figure && !!isupper(captured_figure) == board.WhiteToMove()) ||
       captured_figure == 'K' || captured_figure == 'k' || !figure) {
     throw InvalidMoveException(serialized_move);
   }
+#endif
   const bool white_to_move = board.WhiteToMove();
   const Square en_passant_target_square = board.EnPassantTargetSquare();
   const bool en_passant_capture =
@@ -257,14 +241,15 @@ RevertMoveData MoveCalculator::ApplyMoveOnBoard(Board& board, const SerializedMo
     board.SetKingPosition(white_to_move, move.new_square.x, move.new_square.y);
     MaybeUpdateRookPositionAfterCastling(board, move);
   }
+#ifdef _DEBUG_
   if (board.IsKingInCheck(white_to_move)) {
     throw InvalidMoveException(serialized_move);
   }
+#endif
   board.ChangeSideToMove();
   if (!white_to_move) {
     board.IncrementFullMoveNumber();
   }
-  const unsigned halfmove_clock = board.HalfMoveClock();
   if (captured_figure || figure == 'P' || figure == 'p') {
     board.ResetHalfMoveClock();
   } else {
@@ -276,7 +261,6 @@ RevertMoveData MoveCalculator::ApplyMoveOnBoard(Board& board, const SerializedMo
     board.at(move.new_square.x, move.new_square.y) =
       white_to_move ? move.promotion_to : tolower(move.promotion_to);
   }
-  return {serialized_move, captured_figure, en_passant_target_square, halfmove_clock};
 }
 
 void MoveCalculator::MaybeAddMove(size_t old_x, size_t old_y, size_t new_x, size_t new_y, bool promotion) {

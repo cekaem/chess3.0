@@ -181,6 +181,22 @@ TEST_PROCEDURE(Board_operator_equals) {
   TEST_END
 }
 
+TEST_PROCEDURE(Board_clone) {
+  TEST_START
+  const std::vector<std::string> fens = {
+    "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+    "4K3/8/8/8/2Pp4/7k/8/8 b - c3 0 1",
+    "4K3/8/8/8/2qQ4/7k/8/8 w Kq - 10 15"
+  };
+
+  for (const auto& fen: fens) {
+    Board board(fen);
+    Board clone = board.Clone();
+    VERIFY_EQUALS(board, clone);
+  }
+  TEST_END
+}
+
 TEST_PROCEDURE(Board_IsKingInCheck) {
   TEST_START
   const std::vector<std::tuple<std::string, bool, bool>> cases = {

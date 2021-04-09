@@ -49,6 +49,11 @@ bool operator==(const Board& b1, const Board& b2) {
          b1.CanCastle(Castling::k) == b2.CanCastle(Castling::k);
 }
 
+std::ostream& operator<<(std::ostream& ostr, const Board& board) {
+  ostr << board.CreateFEN();
+  return ostr;
+}
+
 Board::Board(const std::string& fen) {
   size_t index = HandleFields(fen);
   index = HandleSideToMove(fen, index);
@@ -56,6 +61,19 @@ Board::Board(const std::string& fen) {
   index = HandleEnPassantTargetSquare(fen, index);
   index = HandleHalfMoveClock(fen, index);
   HandleFullMoveNumber(fen, index);
+}
+
+Board Board::Clone() const {
+  Board clone;
+  clone.squares_ = squares_;
+  clone.white_to_move_ = white_to_move_;
+  clone.halfmove_clock_ = halfmove_clock_;
+  clone.fullmove_number_ = fullmove_number_;
+  clone.white_king_position_ = white_king_position_;
+  clone.black_king_position_ = black_king_position_;
+  clone.en_passant_target_square_ = en_passant_target_square_;
+  clone.castlings_ = castlings_;
+  return clone;
 }
 
 void Board::HandleFullMoveNumber(const std::string& fen, size_t index) {
@@ -103,10 +121,7 @@ size_t Board::HandleCastlings(const std::string& fen, size_t index) {
   if (end_index == std::string::npos) {
     throw InvalidFENException(fen, "Error in castlings section");
   }
-  castlings_[static_cast<size_t>(Castling::Q)] = false;
-  castlings_[static_cast<size_t>(Castling::q)] = false;
-  castlings_[static_cast<size_t>(Castling::K)] = false;
-  castlings_[static_cast<size_t>(Castling::k)] = false;
+  castlings_ = 0x0;
   for (size_t i = index; i < end_index; ++i) {
     switch (fen[i]) {
       case '-':
@@ -115,16 +130,16 @@ size_t Board::HandleCastlings(const std::string& fen, size_t index) {
         }
         break;
       case 'Q':
-        castlings_[static_cast<size_t>(Castling::Q)] = true;
+        castlings_ |= (1 << static_cast<size_t>(Castling::Q));
         break;
       case 'q':
-        castlings_[static_cast<size_t>(Castling::q)] = true;
+        castlings_ |= (1 << static_cast<size_t>(Castling::q));
         break;
       case 'K':
-        castlings_[static_cast<size_t>(Castling::K)] = true;
+        castlings_ |= (1 << static_cast<size_t>(Castling::K));
         break;
       case 'k':
-        castlings_[static_cast<size_t>(Castling::k)] = true;
+        castlings_ |= (1 << static_cast<size_t>(Castling::k));
         break;
       default:
         throw InvalidFENException(fen, "Error in castlings section");
@@ -294,19 +309,19 @@ std::string Board::RankToFEN(size_t rank) const {
 std::string Board::CastlingsToFEN() const {
   std::string result;
   bool any_castling_possible = false;
-  if (castlings_[static_cast<size_t>(Castling::K)]) {
+  if (CanCastle(Castling::K)) {
     result += 'K';
     any_castling_possible = true;
   }
-  if (castlings_[static_cast<size_t>(Castling::Q)]) {
+  if (CanCastle(Castling::Q)) {
     result += 'Q';
     any_castling_possible = true;
   }
-  if (castlings_[static_cast<size_t>(Castling::k)]) {
+  if (CanCastle(Castling::k)) {
     result += 'k';
     any_castling_possible = true;
   }
-  if (castlings_[static_cast<size_t>(Castling::q)]) {
+  if (CanCastle(Castling::q)) {
     result += 'q';
     any_castling_possible = true;
   }

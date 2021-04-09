@@ -13,7 +13,6 @@
 
 namespace {
 
-/*
 #define COORDINATES_FROM_STRING(str)\
   const size_t old_x = str[0] - 'a'; \
   const size_t old_y = str[1] - '1'; \
@@ -26,8 +25,8 @@ bool MovesAreEqual(const Move& move, const std::string& expected_move) {
   if (expected_move.size() == 5u) {
     promotion_to = expected_move[4u];
   }
-  return move.old_x == old_x && move.old_y == old_y &&
-         move.new_x == new_x && move.new_y == new_y &&
+  return move.old_square.x == old_x && move.old_square.y == old_y &&
+         move.new_square.x == new_x && move.new_square.y == new_y &&
          move.promotion_to == promotion_to;
 }
 
@@ -59,6 +58,7 @@ TEST_PROCEDURE(Engine_exception_is_thrown_when_no_moves) {
   TEST_END
 }
 
+/*
 TEST_PROCEDURE(Engine_finds_mate_in_three) {
   TEST_START
   std::vector<std::tuple<std::string, std::string>> cases = {
@@ -74,6 +74,7 @@ TEST_PROCEDURE(Engine_finds_mate_in_three) {
   }
   TEST_END
 }
+*/
 
 TEST_PROCEDURE(Engine_finds_mate_in_two) {
   TEST_START
@@ -99,7 +100,7 @@ TEST_PROCEDURE(Engine_finds_mate_in_one) {
   TEST_START
   std::vector<std::tuple<std::string, std::string>> cases = {
     {"3k4/8/3K4/8/8/8/8/R7 w - - 0 1", "a1a8"},
-    {"1r5b/8/8/8/k7/8/K1p5/8 b - - 0 1", "c2c1n"}
+    {"1r5b/8/8/8/k7/8/K1p5/8 b - - 0 1", "c2c1N"}
   };
 
   Engine engine(1);
@@ -112,5 +113,4 @@ TEST_PROCEDURE(Engine_finds_mate_in_one) {
   TEST_END
 }
 
-*/
 }  // unnamed namespace

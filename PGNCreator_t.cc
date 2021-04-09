@@ -14,17 +14,19 @@
 
 namespace {
 
-/*
-std::vector<Move>::const_iterator FindMove(const std::vector<Move>& moves, const std::string& move_str) {
+std::vector<SerializedMove>::const_iterator FindMove(
+    const std::vector<SerializedMove>& moves,
+    const std::string& move_str) {
   assert(move_str.size() == 4u || move_str.size() == 5u);
-  return std::find_if(moves.begin(), moves.end(), [move_str](const Move& move) -> bool {
+  return std::find_if(moves.begin(), moves.end(), [move_str](const SerializedMove& s_move) -> bool {
+    Move move = s_move.ToMove();
     if (move_str.length() == 5u && move_str[4] != move.promotion_to) {
       return false;
     }
-    return static_cast<size_t>(move_str[0] - 'a') == move.old_x &&
-           static_cast<size_t>(move_str[1] - '1') == move.old_y &&
-           static_cast<size_t>(move_str[2] - 'a') == move.new_x &&
-           static_cast<size_t>(move_str[3] - '1') == move.new_y;
+    return static_cast<size_t>(move_str[0] - 'a') == move.old_square.x &&
+           static_cast<size_t>(move_str[1] - '1') == move.old_square.y &&
+           static_cast<size_t>(move_str[2] - 'a') == move.new_square.x &&
+           static_cast<size_t>(move_str[3] - '1') == move.new_square.y;
   });
 }
 
@@ -36,8 +38,8 @@ TEST_PROCEDURE(PGNCreator_proper_string_is_generated) {
     {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", "e2e4", "e4"},
     {"rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1", "e7e5", "e5"},
     {"3qk3/8/8/8/8/8/8/4K3 b - - 0 1", "d8d1", "Qd1+"},
-    {"8/2K5/8/8/7k/8/4p3/8 b - - 0 1", "e2e1q", "e1Q"},
-    {"8/2K5/8/8/7k/8/4p3/8 b - - 0 1", "e2e1b", "e1B"},
+    {"8/2K5/8/8/7k/8/4p3/8 b - - 0 1", "e2e1Q", "e1Q"},
+    {"8/2K5/8/8/7k/8/4p3/8 b - - 0 1", "e2e1B", "e1B"},
     {"8/8/2n5/1K6/7k/8/8/8 w - - 0 1", "b5c6", "Kxc6"},
     {"K7/8/k7/8/5b2/3b4/8/8 b - - 0 1", "d3e4", "Be4#"},
     {"K7/8/k7/5b2/4Rb2/5b2/8/8 b - - 0 1", "f5e4", "B5xe4#"},
@@ -96,7 +98,7 @@ TEST_PROCEDURE(PGNCreator_whole_game) {
       auto iter = FindMove(moves, move_str);
       VERIFY_TRUE(iter != moves.end()) << "failed for fen \"" << fen << "\" and move " << move_str;
       pgn_creator.AddMove(board, *iter);
-      board = iter->board;
+      MoveCalculator::ApplyMoveOnBoard(board, *iter);
     }
     pgn_creator.GameFinished(result);
     VERIFY_EQUALS(pgn_creator.GetPGN(), expected_fen) << "failed for fen \"" << fen << "\" and moves " << moves_str;
@@ -126,5 +128,4 @@ TEST_PROCEDURE(PGNCreator_result_string) {
 
   TEST_END
 }
-*/
 }  // unnamed namespace

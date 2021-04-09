@@ -7,8 +7,6 @@
 
 #include "utils/Timer.h"
 
-/*
-
 namespace {
 
 static double PawnValue = 1.0;
@@ -86,9 +84,9 @@ bool IsMate(Board& board) {
 }  // unnamed namespace
 
 
-Engine::EngineMove::EngineMove(const Board& b) : board(std::move(b)) {}
+Engine::EngineMove::EngineMove(const SerializedMove& m) : move(m) {}
 
-void Engine::EngineMove::Evaluate() {
+void Engine::EngineMove::Evaluate(Board& board) {
   eval = EvaluateMove(board);
   mate_in = IsMate(board) ? (board.WhiteToMove() ? -1 : 1) : 0;
 }
@@ -108,31 +106,23 @@ Engine::EngineMoves Engine::GenerateEngineMovesForBoard(Board& board) {
   MoveCalculator calculator;
   auto moves = calculator.CalculateAllMoves(board);
   for (const auto& move: moves) {
-    result.push_back(EngineMove(move.board));
+    result.push_back(EngineMove(move));
   }
   nodes_calculated_ += result.size();
   return result;
 }
 
-Move Engine::FindMoveForBoard(const Board& initial_board, const Board& dest_board) const {
-  MoveCalculator calculator;
-  auto moves = calculator.CalculateAllMoves(initial_board);
-  auto iter = std::find_if(moves.begin(), moves.end(), [dest_board](const Move& move) {
-    return move.board == dest_board;
-  });
-  assert(iter != moves.end());
-  return *iter;
-}
-
-void Engine::GenerateNextDepth(EngineMoves& moves) {
+void Engine::GenerateNextDepth(const Board& board, EngineMoves& moves) {
   if (!continue_calculations_) {
     return;
   }
   for (auto& move: moves) {
+    Board copy = board.Clone();
+    MoveCalculator::ApplyMoveOnBoard(copy, move.move);
     if (move.children.empty()) {
-      move.children = GenerateEngineMovesForBoard(move.board);
+      move.children = GenerateEngineMovesForBoard(copy);
     } else {
-      GenerateNextDepth(move.children);
+      GenerateNextDepth(copy, move.children);
     }
   }
 }
@@ -224,8 +214,8 @@ Engine::BorderValues Engine::GetBorderValuesForChildren(const EngineMove& parent
   return border_values;
 }
 
-bool Engine::UpdateMoveMovesToMateBasedOnChildren(EngineMove& move) const {
-  const bool is_my_move = playing_white_ == move.board.WhiteToMove();
+bool Engine::UpdateMoveMovesToMateBasedOnChildren(EngineMove& move, bool white_to_move) const {
+  const bool is_my_move = playing_white_ == white_to_move;
   BorderValues border_values = GetBorderValuesForChildren(move);
   int result = 0;
   if ((playing_white_ && is_my_move) ||
@@ -260,20 +250,22 @@ bool Engine::UpdateMoveMovesToMateBasedOnChildren(EngineMove& move) const {
 void Engine::UpdateMoveEvalBasedOnChildren(EngineMove& move) const {
 }
 
-void Engine::EvaluateChildrenAndUpdateParent(EngineMoves& parent) const {
+void Engine::EvaluateChildrenAndUpdateParent(const Board& board, EngineMoves& parent) const {
   for (auto& move: parent) {
+    Board copy = board.Clone();
+    MoveCalculator::ApplyMoveOnBoard(copy, move.move);
     if (move.children.empty()) {
-      move.Evaluate();
+      move.Evaluate(copy);
     } else {
-      EvaluateChildrenAndUpdateParent(move.children);
-      if (!UpdateMoveMovesToMateBasedOnChildren(move)) {
+      EvaluateChildrenAndUpdateParent(copy, move.children);
+      if (!UpdateMoveMovesToMateBasedOnChildren(move, copy.WhiteToMove())) {
         UpdateMoveEvalBasedOnChildren(move);
       }
     }
   }
 }
 
-Move Engine::CalculateBestMove(const Board& board) {
+Move Engine::CalculateBestMove(Board& board) {
   assert(max_depth_ > 0u);
   continue_calculations_ = true;
   nodes_calculated_ = 0u;
@@ -294,9 +286,9 @@ Move Engine::CalculateBestMove(const Board& board) {
     throw NoMovesException(result);
   }
   for (size_t i = 0; i < max_depth_ - 1; ++i) {
-    GenerateNextDepth(root_);
+    GenerateNextDepth(board, root_);
   }
-  EvaluateChildrenAndUpdateParent(root_);
+  EvaluateChildrenAndUpdateParent(board, root_);
   EngineMoves best_moves;
   int mate_in = CheckForMate(root_);
   if (mate_in) {
@@ -310,6 +302,5 @@ Move Engine::CalculateBestMove(const Board& board) {
   if (max_time_) {
     timer.stop();
   }
-  return FindMoveForBoard(board, best_moves[index].board);
+  return best_moves[index].move.ToMove();
 }
-*/

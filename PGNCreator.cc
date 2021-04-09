@@ -5,7 +5,6 @@
 #include <sstream>
 #include <vector>
 
-/*
 namespace {
 
 enum class MoveTypeFlag {
@@ -48,8 +47,8 @@ char RankNumberToString(size_t rank) {
 
 std::string DestinationSquareToString(const Move& move) {
   std::string result;
-  result += FileNumberToString(move.new_x);
-  result += RankNumberToString(move.new_y);
+  result += FileNumberToString(move.new_square.x);
+  result += RankNumberToString(move.new_square.y);
   return result;
 }
 
@@ -57,15 +56,17 @@ std::vector<Move> FindAllMatchingMoves(
     const Board& board,
     const Move& move_to_match) {
   std::vector<Move> matching_moves;
-  const char figure = board.at(move_to_match.old_x, move_to_match.old_y);
+  const char figure = board.at(move_to_match.old_square.x, move_to_match.old_square.y);
   assert(figure);
   MoveCalculator calculator;
-  auto moves = calculator.CalculateAllMoves(board);
-  for (const auto& move: moves) {
-    if (board.at(move.old_x, move.old_y) == figure &&
+  Board copy = board.Clone();
+  auto moves = calculator.CalculateAllMoves(copy);
+  for (const auto& serialized_move: moves) {
+    Move move = serialized_move.ToMove();
+    if (board.at(move.old_square.x, move.old_square.y) == figure &&
         move.promotion_to == move_to_match.promotion_to &&
-        move.new_x == move_to_match.new_x &&
-        move.new_y == move_to_match.new_y) {
+        move.new_square.x == move_to_match.new_square.x &&
+        move.new_square.y == move_to_match.new_square.y) {
       matching_moves.push_back(move);
     }
   }
@@ -73,7 +74,7 @@ std::vector<Move> FindAllMatchingMoves(
 }
 
 MoveTypeFlag DetermineMoveType(const Board& board, const Move& move) {
-  const char figure = board.at(move.old_x, move.old_y);
+  const char figure = board.at(move.old_square.x, move.old_square.y);
   assert(figure);
   auto matching_moves = FindAllMatchingMoves(board, move);
   assert(!matching_moves.empty());
@@ -84,10 +85,10 @@ MoveTypeFlag DetermineMoveType(const Board& board, const Move& move) {
     size_t number_of_moves_with_matching_file = 0u;
     size_t number_of_moves_with_matching_rank = 0u;
     for (const auto& matching_move: matching_moves) {
-      if (matching_move.old_x == move.old_x) {
+      if (matching_move.old_square.x == move.old_square.x) {
         ++number_of_moves_with_matching_file;
       }
-      if (matching_move.old_y == move.old_y) {
+      if (matching_move.old_square.y == move.old_square.y) {
         ++number_of_moves_with_matching_rank;
       }
     }
@@ -103,6 +104,15 @@ MoveTypeFlag DetermineMoveType(const Board& board, const Move& move) {
   return flags;
 }
 
+bool MoveCapturesFigure(const Board& board, const Move& move) {
+  if (board.at(move.new_square)) {
+    return true;
+  }
+  const char figure = board.at(move.old_square);
+  return (figure == 'P' || figure == 'p') &&
+         move.new_square == board.EnPassantTargetSquare();
+}
+
 bool IsCastling(char figure, const Move& move, bool king_side) {
   if (figure != 'K' && figure != 'k') {
     return false;
@@ -110,13 +120,14 @@ bool IsCastling(char figure, const Move& move, bool king_side) {
   const size_t expected_rank = (figure == 'K' ? 0u : 7u);
   const size_t expected_source_file = 4u;
   const size_t expected_destination_file = (king_side ? 6u : 2u);
-  return move.old_x == expected_source_file &&
-         move.new_x == expected_destination_file &&
-         move.new_y == expected_rank;
+  return move.old_square.x == expected_source_file &&
+         move.new_square.x == expected_destination_file &&
+         move.new_square.y == expected_rank;
 }
 
-std::string MoveToString(const Board& board, const Move& move) {
-  const char figure = board.at(move.old_x, move.old_y);
+std::string MoveToString(const Board& board, const SerializedMove& serialized_move) {
+  Move move = serialized_move.ToMove();
+  const char figure = board.at(move.old_square);
   assert(figure);
   if (IsCastling(figure, move, true)) {
     return "O-O";
@@ -130,19 +141,19 @@ std::string MoveToString(const Board& board, const Move& move) {
     MoveTypeFlag flags = DetermineMoveType(board, move);
     if (!IsUniqueDestination(flags)) {
       if (IsUniqueSourceFile(flags)) {
-        result += FileNumberToString(move.old_x);
+        result += FileNumberToString(move.old_square.x);
       } else if (IsUniqueSourceRank(flags)) {
-        result += RankNumberToString(move.old_y);
+        result += RankNumberToString(move.old_square.y);
       } else {
         assert(flags == MoveTypeFlag::NONE);
-        result += FileNumberToString(move.old_x);
-        result += RankNumberToString(move.old_y);
+        result += FileNumberToString(move.old_square.x);
+        result += RankNumberToString(move.old_square.y);
       }
     }
   }
-  if (move.figure_captured) {
+  if (MoveCapturesFigure(board, move)) {
     if (figure == 'P' || figure == 'p') {
-      result += FileNumberToString(move.old_x);
+      result += FileNumberToString(move.old_square.x);
     }
     result += 'x';
   }
@@ -150,14 +161,16 @@ std::string MoveToString(const Board& board, const Move& move) {
   if (move.promotion_to) {
     result += toupper(move.promotion_to);
   }
+  Board board_after_move = board.Clone();
+  MoveCalculator::ApplyMoveOnBoard(board_after_move, serialized_move);
   bool is_check = false;
   bool is_mate = false;
-  if (move.board.IsKingInCheck(move.board.WhiteToMove())) {
+  if (board_after_move.IsKingInCheck(board_after_move.WhiteToMove())) {
     is_check = true;
   }
   if (is_check) {
     MoveCalculator calculator;
-    is_mate = calculator.CalculateAllMoves(move.board).empty();
+    is_mate = calculator.CalculateAllMoves(board_after_move).empty();
   }
   if (is_mate) {
     result += '#';
@@ -202,7 +215,7 @@ std::string PGNCreator::GetPGN() const {
   return ss.str();
 }
 
-std::string PGNCreator::AddMove(const Board& board, const Move& move) {
+std::string PGNCreator::AddMove(const Board& board, const SerializedMove& move) {
   std::string move_str = MoveToString(board, move);
   std::stringstream ss;
   if (board.WhiteToMove()) {
@@ -212,5 +225,3 @@ std::string PGNCreator::AddMove(const Board& board, const Move& move) {
   moves_.push_back(ss.str());
   return move_str;
 }
-
-*/
