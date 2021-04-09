@@ -20,6 +20,16 @@ struct SerializedMove {
   unsigned short data{0};
 };
 
+struct RevertMoveData {
+  RevertMoveData(const SerializedMove& m, char cf, const Square& epts, unsigned hmc) :
+    move(m), captured_figure(cf), en_passant_target_square(epts), halfmove_clock(hmc) {}
+
+  const SerializedMove move;
+  const char captured_figure;
+  const Square en_passant_target_square;
+  const unsigned halfmove_clock;
+};
+
 std::ostream& operator<<(std::ostream& ostr, const SerializedMove& move_serialized);
 std::ostream& operator<<(std::ostream& ostr, const Move& move);
 
@@ -33,10 +43,9 @@ class MoveCalculator {
  public:
   std::vector<SerializedMove> CalculateAllMoves(Board& board);
   std::vector<SerializedMove> CalculateAllMoves(const std::string& fen);
-  static char ApplyMoveOnBoard(Board& board, const SerializedMove& serialized_move);
+  static RevertMoveData ApplyMoveOnBoard(Board& board, const SerializedMove& serialized_move);
   static void RevertMoveOnBoard(Board& board,
-                                const SerializedMove& serialized_move,
-                                char captured_figure);
+                                const RevertMoveData& data);
 
  private:
   void HandlePawnMoves(size_t x, size_t y);

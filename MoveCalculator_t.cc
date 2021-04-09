@@ -55,6 +55,21 @@ void VERIFY_MOVES_FROM_SOURCE_SQUARE(const std::vector<SerializedMove> moves,
   }
 }
 
+void VERIFY_MOVES(const std::vector<SerializedMove>& moves, const std::string& list) {
+  std::stringstream ss(list);
+  std::string move;
+  while(getline(ss, move, ';')) {
+    VERIFY_MOVES_CONTAIN_MOVE(moves, move) << "didn't found move: " << move;
+  }
+}
+
+bool MovesAreEqual(const SerializedMove& serialized_move, const std::string& move_str) {
+  COORDINATES_FROM_STRING(move_str);
+  const Move move = serialized_move.ToMove();
+  return move.old_square.x == old_x && move.old_square.y == old_y &&
+         move.new_square.x == new_x && move.new_square.y == new_y;
+}
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
 
@@ -67,293 +82,7 @@ std::ostream& operator<<(std::ostream& os, const std::vector<SerializedMove>& mo
 
 #pragma GCC diagnostic pop
 
-/*
-bool operator==(const Move& m1, const Move& m2) {
-  return m1.old_x == m2.old_x &&
-         m1.old_y == m2.old_y &&
-         m1.new_x == m2.new_x &&
-         m1.new_y == m2.new_y &&
-         m1.figure_captured == m2.figure_captured &&
-         m1.promotion_to == m2.promotion_to;
-}
-
-bool MovesContainMove(
-    const std::vector<Move>& moves,
-    const Move& move) {
-  for (const auto& m: moves) {
-    if (m == move) {
-      return true;
-    }
-  }
-  return false;
-}
-
-bool MovesAreEqual(const Move& move, const std::string& move_str) {
-  COORDINATES_FROM_STRING(move_str);
-  return move.old_x == old_x && move.old_y == old_y &&
-         move.new_x == new_x && move.new_y == new_y;
-}
-
-bool MovesContainMove(
-    const std::vector<Move>& moves,
-    const std::string& move_str,
-    bool figure_captured = false,
-    char promotion_to = 0x0) {
-  for (const auto& move: moves) {
-    if (MovesAreEqual(move, move_str) &&
-        move.promotion_to == promotion_to) {
-      return true;
-    }
-  }
-  return false;
-}
-
-#define VERIFY_MOVES_FROM_SOURCE_SQUARE(moves, old_square, new_squares) \
-  VerifyMovesWithoutCapture(moves, old_square, new_squares)
-
-void VerifyMovesWithoutCapture(
-    const std::vector<Move>& moves,
-    const std::string& old_square,
-    const std::string& new_squares) {
-  VERIFY_EQUALS(new_squares.length() % 2, 0u);
-  for (size_t i = 0; i < new_squares.length(); i += 2) {
-    const std::string move = old_square + new_squares.substr(i, 2);
-    VERIFY_MOVES_CONTAIN_MOVE(moves, move)) << "missing move " << move;
-  }
-}
-
-#define VERIFY_MOVES(moves, list) VerifyMoves(moves, list)
-
-Move CreateMoveFromString(const std::string& str) {
-  assert(str.length() == 5u || str.length() == 6u);
-  assert(str[2] == '-' || str[2] == 'x');
-  const size_t old_x = str[0] - 'a';
-  const size_t old_y = str[1] - '1';
-  const size_t new_x = str[3] - 'a';
-  const size_t new_y = str[4] - '1';
-  const bool figure_captured = (str[2] == 'x');
-  char promotion_to = 0x0;
-  if (str.length() > 5u) {
-    switch (str[5]) {
-      case 'Q':
-      case 'q':
-      case 'R':
-      case 'r':
-      case 'B':
-      case 'b':
-      case 'N':
-      case 'n':
-        promotion_to = str[5];
-        break;
-      default:
-        assert(!"Unexpected char");
-        break;
-    }
-  }
-  Board fake_board("4K1k1/8/8/8/8/8/8/8 w - - 0 1");
-  Move result({std::move(fake_board), old_x, old_y, new_x, new_y, promotion_to, figure_captured});
-  return result;
-}
-
-void VerifyMoves(const std::vector<Move>& moves, const std::string& list) {
-  std::stringstream ss(list);
-  std::string move_str;
-  while(getline(ss, move_str, ';')) {
-    Move move = CreateMoveFromString(move_str);
-    VERIFY_MOVES_CONTAIN_MOVE(moves, move)) << "didn't found move: " << move_str;
-  }
-}
-
-Board FindBoardForMove(const std::vector<Move>& moves, const std::string move) {
-  COORDINATES_FROM_STRING(move);
-  char promotion_to = 0x0;
-  if (move.length() == 5u) {
-    promotion_to = move[4u];
-  }
-  for (const auto& m: moves) {
-    if (m.old_x == old_x && m.old_y == old_y &&
-        m.new_x == new_x && m.new_y == new_y &&
-        m.promotion_to == promotion_to) {
-      return m.board;
-    }
-  }
-  NOT_REACHED(move);
-  Board dummy_board("");
-  return dummy_board;
-}
-
 // =========================================================================
-
-TEST_PROCEDURE(MoveCalculator_various_cases) {
-  TEST_START
-  {
-    Board board("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
-    MoveCalculator calculator;
-    auto moves = calculator.CalculateAllMoves(board);
-    VERIFY_EQUALS(moves.size(), 20u);
-    VERIFY_MOVES(moves, "a2-a3;a2-a4;b2-b3;b2-b4;c2-c3;c2-c4;d2-d3;d2-d4");
-    VERIFY_MOVES(moves, "e2-e3;e2-e4;f2-f3;f2-f4;g2-g3;g2-g4;h2-h3;h2-h4");
-    VERIFY_MOVES(moves, "b1-a3;b1-c3;g1-f3;g1-h3");
-  }
-  {
-    Board board("8/8/4k3/1K6/8/8/6p1/8 b - - 0 1");
-    MoveCalculator calculator;
-    auto moves = calculator.CalculateAllMoves(board);
-    VERIFY_EQUALS(moves.size(), 12u);
-    VERIFY_MOVES_FROM_SOURCE_SQUARE(moves, "e6", "f6f5e5d5d6d7e7f7");
-    VERIFY_MOVES(moves, "g2-g1q;g2-g1r;g2-g1n;g2-g1b");
-  }
-  {
-    Board board("4k3/8/8/8/8/3B4/5PPP/3r2K1 w - - 0 1");
-    MoveCalculator calculator;
-    auto moves = calculator.CalculateAllMoves(board);
-    VERIFY_EQUALS(moves.size(), 1u);
-    VERIFY_MOVES(moves, "d3-f1");
-  }
-  {
-    Board board("8/8/8/8/8/6P1/p2k1PKP/rQ6 b - - 0 1");
-    MoveCalculator calculator;
-    auto moves = calculator.CalculateAllMoves(board);
-    VERIFY_EQUALS(moves.size(), 7u);
-    VERIFY_MOVES(moves, "a1xb1;a2xb1q;a2xb1r;a2xb1b;a2xb1n;d2-c3;d2-e2");
-  }
-  {
-    Board board("7k/7b/6R1/8/7R/8/8/3K4 b - - 7 9");
-    MoveCalculator calculator;
-    auto moves = calculator.CalculateAllMoves(board);
-    VERIFY_EQUALS(moves.size(), 0u);
-  }
-  {
-    Board board("8/5k2/4br2/5B2/2K5/8/8/8 w - - 0 1");
-    MoveCalculator calculator;
-    auto moves = calculator.CalculateAllMoves(board);
-    VERIFY_EQUALS(moves.size(), 15u);
-    VERIFY_MOVES_CONTAIN_MOVE(moves, "f5e6", true));
-  }
-  TEST_END
-}
-
-TEST_PROCEDURE(MoveCalculator_half_move_clock) {
-  TEST_START
-  const std::vector<std::pair<std::string, std::string>> cases = {
-    {"6R1/8/8/4rPp1/3K4/7k/8/8 w - g6 10 7", "d4e5f5f6g8g5f5g6"},
-    {"6R1/8/8/4rPp1/3K4/7k/8/8 b - g6 16 8", "e5f5g5g4"},
-    {"8/P1N5/4pk2/8/8/3q4/3K3P/8 w - g6 20 7", "a7a8c7e6d2d3h2h3h2h4"},
-    {"n3q3/7p/6p1/k7/Pp6/8/5K2/1b6 b - a3 1 7", "a5a4g6g5h7h6h7h5b4b3b4a3e8a4"},
-    {"r3k2r/8/8/8/8/8/8/R3K2R w KQkq a3 5 70", "a1a8h1h8"}
-  };
-
-  auto IsMoveInList = [](const Move& move, const std::string& moves) -> bool {
-    for (size_t i = 0; i < moves.length(); i += 4) {
-      const std::string move_str = moves.substr(i, 4);
-      if (MovesAreEqual(move, move_str)) {
-        return true;
-      }
-    }
-    return false;
-  };
-
-  for (const auto&[fen, moves_reseting_hmc]: cases) {
-    Board board(fen);
-    const size_t incremented_hmc = board.HalfMoveClock() + 1u;
-    MoveCalculator calculator;
-    auto moves = calculator.CalculateAllMoves(board);
-    for (const auto& move: moves) {
-      size_t expected_hmc = 0u;
-      if (!IsMoveInList(move, moves_reseting_hmc)) {
-        expected_hmc = incremented_hmc;
-      }
-      VERIFY_EQUALS(move.board.HalfMoveClock(), expected_hmc) << "failed for fen \"" << fen << "\" and move " << move;
-    }
-  }
-  TEST_END
-}
-
-TEST_PROCEDURE(MoveCalculator_castlings_reset) {
-  TEST_START
-  const std::vector<std::tuple<std::string, std::string, bool, bool, bool, bool>> cases = {
-    {"r3k2r/8/8/8/8/8/8/R3K2R w KQkq a6 0 7", "e1g1", false, false, true, true},
-    {"r3k2r/8/8/8/8/8/8/R3K2R w KQkq a6 0 7", "e1c1", false, false, true, true},
-    {"r3k2r/8/8/8/8/8/8/R3K2R b KQkq a6 0 7", "e8g8", true, true, false, false},
-    {"r3k2r/8/8/8/8/8/8/R3K2R b KQkq a6 0 7", "e8c8", true, true, false, false},
-    {"r3k2r/8/8/8/8/8/8/R3K2R w KQkq a6 0 7", "e1f1", false, false, true, true},
-    {"r3k2r/8/8/8/8/8/8/R3K2R w KQkq a6 0 7", "h1h2", false, true, true, true},
-    {"r3k2r/8/8/8/8/8/8/R3K2R w KQkq a6 0 7", "a1b1", true, false, true, true},
-    {"r3k2r/8/8/8/8/8/8/R3K2R b KQkq a6 0 7", "e8e7", true, true, false, false},
-    {"r3k2r/8/8/8/8/8/8/R3K2R b KQkq a6 0 7", "a8a5", true, true, true, false},
-    {"r3k2r/8/8/8/8/8/8/R3K2R b KQkq a6 0 7", "h8f8", true, true, false, true},
-    {"r3k2r/8/8/8/8/5Q2/8/R3K2R w KQkq a6 0 7", "f3f4", true, true, true, true},
-    {"r3k2r/p7/8/8/8/8/8/R3K2R b KQkq a3 0 7", "a7a5", true, true, true, true},
-    {"r3k2r/8/8/8/3R4/8/8/R3K2R w KQkq a6 0 7", "d4e4", true, true, true, true}
-  };
-
-  MoveCalculator calculator;
-
-  for (const auto&[fen, move, K, Q, k, q]: cases) {
-    auto moves = calculator.CalculateAllMoves(fen);
-    Board board_after_move = FindBoardForMove(moves, move);
-    VERIFY_EQUALS(board_after_move.CanCastle(Castling::K), K) << "failed for fen " << fen;
-    VERIFY_EQUALS(board_after_move.CanCastle(Castling::Q), Q) << "failed for fen " << fen;
-    VERIFY_EQUALS(board_after_move.CanCastle(Castling::k), k) << "failed for fen " << fen;
-    VERIFY_EQUALS(board_after_move.CanCastle(Castling::q), q) << "failed for fen " << fen;
-  }
-  TEST_END
-}
-
-TEST_PROCEDURE(MoveCalculator_side_to_move_after_move) {
-  TEST_START
-  std::vector<std::string> fens = {
-    "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-    "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq - 0 1",
-    "2k4r/8/7b/8/1Pp5/8/4K3/7q b - b3 0 1",
-    "r3k2r/8/8/8/8/8/8/R3K2R w KQkq b3 0 1",
-    "r3k2r/8/8/8/8/8/8/R3K2R b KQkq b3 0 1"
-  };
-
-  MoveCalculator calculator;
-
-  for (const auto& fen: fens) {
-    Board board(fen);
-    const bool expected_side_to_move = !board.WhiteToMove();
-    auto moves = calculator.CalculateAllMoves(fen);
-    for (const auto& move: moves) {
-      VERIFY_EQUALS(move.board.WhiteToMove(), expected_side_to_move) << "failed for fen \"" << fen << "\" and move " << move;
-    }
-  }
-  TEST_END
-}
-
-TEST_PROCEDURE(MoveCalculator_en_passant_target_square_after_move) {
-  TEST_START
-  std::vector<std::tuple<std::string, std::string, std::string>> cases = {
-    {"8/8/5K2/8/2p5/5k2/1P6/8 w - - 0 1", "b2b4", "b3"},
-    {"8/8/5K2/2pP4/8/5k2/8/8 b - - 0 1", "c7c5", "c6"},
-    // Below are test cases in which all moves should invalidate en passant target square
-    // so I provided dummy move and dummy expected en-passant target square.
-    {"r3k2r/8/8/8/8/8/8/R3K2R w - b6 0 1", "a1a1", ""},
-    {"r3k2r/8/8/8/8/8/8/R3K2R b - e3 0 1", "a1a1", ""},
-    {"4k2b/6Q1/8/N6n/8/7q/8/B3K3 b - b3 0 1", "a1a1", ""},
-    {"4k2b/6Q1/8/N6n/8/7q/8/B3K3 w - b3 0 1", "a1a1", ""},
-    {"8/1P1k4/8/8/8/P6p/2p5/5K2 w - h6 0 1", "a1a1", ""},
-    {"8/1P1k4/8/8/8/P6p/2p5/5K2 b - a3 0 1", "a1a1", ""}
-  };
-
-  MoveCalculator calculator;
-
-  for (const auto& [fen, move_str, en_passant_target_square]: cases) {
-    auto moves = calculator.CalculateAllMoves(fen);
-    for (const auto& move: moves) {
-      if (MovesAreEqual(move, move_str)) {
-        VERIFY_EQUALS(move.board.EnPassantTargetSquare(), Square(en_passant_target_square)) << "failed for fen " << fen;
-      } else {
-        VERIFY_TRUE(move.board.EnPassantTargetSquare().IsInvalid())  << "failed for fen \"" << fen << "\" and move " << move;
-      }
-    }
-  }
-  TEST_END
-}
-
-*/
 
 TEST_PROCEDURE(MoveCalculator_bishop_moves) {
   TEST_START
@@ -552,6 +281,55 @@ TEST_PROCEDURE(MoveCalculator_castlings) {
   TEST_END
 }
 
+TEST_PROCEDURE(MoveCalculator_various_cases) {
+  TEST_START
+  {
+    Board board("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+    MoveCalculator calculator;
+    auto moves = calculator.CalculateAllMoves(board);
+    VERIFY_EQUALS(moves.size(), 20u);
+    VERIFY_MOVES(moves, "a2a3;a2a4;b2b3;b2b4;c2c3;c2c4;d2d3;d2d4");
+    VERIFY_MOVES(moves, "e2e3;e2e4;f2f3;f2f4;g2g3;g2g4;h2h3;h2h4");
+    VERIFY_MOVES(moves, "b1a3;b1c3;g1f3;g1h3");
+  }
+  {
+    Board board("8/8/4k3/1K6/8/8/6p1/8 b - - 0 1");
+    MoveCalculator calculator;
+    auto moves = calculator.CalculateAllMoves(board);
+    VERIFY_EQUALS(moves.size(), 12u);
+    VERIFY_MOVES_FROM_SOURCE_SQUARE(moves, "e6", "f6f5e5d5d6d7e7f7");
+    VERIFY_MOVES(moves, "g2g1Q;g2g1R;g2g1N;g2g1B");
+  }
+  {
+    Board board("4k3/8/8/8/8/3B4/5PPP/3r2K1 w - - 0 1");
+    MoveCalculator calculator;
+    auto moves = calculator.CalculateAllMoves(board);
+    VERIFY_EQUALS(moves.size(), 1u);
+    VERIFY_MOVES(moves, "d3f1");
+  }
+  {
+    Board board("8/8/8/8/8/6P1/p2k1PKP/rQ6 b - - 0 1");
+    MoveCalculator calculator;
+    auto moves = calculator.CalculateAllMoves(board);
+    VERIFY_EQUALS(moves.size(), 7u);
+    VERIFY_MOVES(moves, "a1b1;a2b1Q;a2b1R;a2b1B;a2b1N;d2c3;d2e2");
+  }
+  {
+    Board board("7k/7b/6R1/8/7R/8/8/3K4 b - - 7 9");
+    MoveCalculator calculator;
+    auto moves = calculator.CalculateAllMoves(board);
+    VERIFY_EQUALS(moves.size(), 0u);
+  }
+  {
+    Board board("8/5k2/4br2/5B2/2K5/8/8/8 w - - 0 1");
+    MoveCalculator calculator;
+    auto moves = calculator.CalculateAllMoves(board);
+    VERIFY_EQUALS(moves.size(), 7u);
+    VERIFY_MOVES_CONTAIN_MOVE(moves, "f5e6");
+  }
+  TEST_END
+}
+
 TEST_PROCEDURE(MoveCalculator_board_after_move) {
   TEST_START
   const std::vector<std::tuple<std::string, std::string, std::string>> cases = {
@@ -578,6 +356,42 @@ TEST_PROCEDURE(MoveCalculator_board_after_move) {
   TEST_END
 }
 
+TEST_PROCEDURE(MoveCalculator_en_passant_target_square_after_move) {
+  TEST_START
+  const std::vector<std::tuple<std::string, std::string, std::string>> with_square_after_move = {
+    {"8/8/5K2/8/2p5/5k2/1P6/8 w - - 0 1", "b2b4", "b3"},
+    {"8/2p5/5K2/3P4/8/5k2/8/8 b - - 0 1", "c7c5", "c6"}
+  };
+
+  const std::vector<std::string> fens_resetting_en_passant = {
+    {"r3k2r/8/8/8/8/8/8/R3K2R w - b6 0 1"},
+    {"r3k2r/8/8/8/8/8/8/R3K2R b - e3 0 1"},
+    {"4k2b/6Q1/8/N6n/8/7q/8/B3K3 b - b3 0 1"},
+    {"4k2b/6Q1/8/N6n/8/7q/8/B3K3 w - b3 0 1"},
+    {"8/1P1k4/8/8/8/P6p/2p5/5K2 w - h6 0 1"},
+    {"8/1P1k4/8/8/8/P6p/2p5/5K2 b - a3 0 1"}
+  };
+
+  for (const auto& [fen, move_str, en_passant_target_square]: with_square_after_move) {
+    Board board(fen);
+    MoveCalculator::ApplyMoveOnBoard(board, SerializedMoveFromString(move_str));
+    VERIFY_EQUALS(board.EnPassantTargetSquare(), Square(en_passant_target_square)) << "failed for fen " << fen;
+  }
+
+  MoveCalculator calculator;
+
+  for (const auto& fen: fens_resetting_en_passant) {
+    Board board(fen);
+    auto moves = calculator.CalculateAllMoves(board);
+    for (const auto& move: moves) {
+      Board b(fen);
+      MoveCalculator::ApplyMoveOnBoard(b, move);
+      VERIFY_TRUE(b.EnPassantTargetSquare().IsInvalid());
+    }
+  }
+  TEST_END
+}
+
 TEST_PROCEDURE(MoveCalculator_full_move_number) {
   TEST_START
   const std::vector<std::tuple<std::string, unsigned, unsigned>> cases = {
@@ -594,12 +408,102 @@ TEST_PROCEDURE(MoveCalculator_full_move_number) {
     auto moves = calculator.CalculateAllMoves(board);
     VERIFY_EQUALS(moves.size(), expected_number_of_moves);
     for (const auto& move: moves) {
-      //const char captured_figure = calculator.ApplyMoveOnBoard(board, move);
       Board board(fen);
       calculator.ApplyMoveOnBoard(board, move);
       VERIFY_EQUALS(board.FullMoveNumber(), expected_full_move_number)
           << "failed for fen " << fen << " and move " << move;
-      //calculator.RevertMoveOnBoard(board, move, captured_figure);
+    }
+  }
+  TEST_END
+}
+
+TEST_PROCEDURE(MoveCalculator_half_move_clock) {
+  TEST_START
+  const std::vector<std::pair<std::string, std::string>> cases = {
+    {"6R1/8/8/4rPp1/3K4/7k/8/8 w - g6 10 7", "d4e5f5f6g8g5f5g6"},
+    {"6R1/8/8/4rPp1/3K4/7k/8/8 b - g6 16 8", "e5f5g5g4"},
+    {"8/P1N5/4pk2/8/8/3q4/3K3P/8 w - g6 20 7", "a7a8c7e6d2d3h2h3h2h4"},
+    {"n3q3/7p/6p1/k7/Pp6/8/5K2/1b6 b - a3 1 7", "a5a4g6g5h7h6h7h5b4b3b4a3e8a4"},
+    {"r3k2r/8/8/8/8/8/8/R3K2R w KQkq a3 5 70", "a1a8h1h8"}
+  };
+
+  auto IsMoveInList = [](const SerializedMove& move, const std::string& moves) -> bool {
+    for (size_t i = 0; i < moves.length(); i += 4) {
+      const std::string move_str = moves.substr(i, 4);
+      if (MovesAreEqual(move, move_str)) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  for (const auto&[fen, moves_reseting_hmc]: cases) {
+    Board board(fen);
+    const size_t incremented_hmc = board.HalfMoveClock() + 1u;
+    MoveCalculator calculator;
+    auto moves = calculator.CalculateAllMoves(board);
+    for (const auto& move: moves) {
+      size_t expected_hmc = 0u;
+      if (!IsMoveInList(move, moves_reseting_hmc)) {
+        expected_hmc = incremented_hmc;
+      }
+      Board b(fen);
+      MoveCalculator::ApplyMoveOnBoard(b, move);
+      VERIFY_EQUALS(b.HalfMoveClock(), expected_hmc) << "failed for fen \"" << fen << "\" and move " << move;
+    }
+  }
+  TEST_END
+}
+
+TEST_PROCEDURE(MoveCalculator_castlings_reset) {
+  TEST_START
+  const std::vector<std::tuple<std::string, std::string, bool, bool, bool, bool>> cases = {
+    {"r3k2r/8/8/8/8/8/8/R3K2R w KQkq a6 0 7", "e1g1", false, false, true, true},
+    {"r3k2r/8/8/8/8/8/8/R3K2R w KQkq a6 0 7", "e1c1", false, false, true, true},
+    {"r3k2r/8/8/8/8/8/8/R3K2R b KQkq a6 0 7", "e8g8", true, true, false, false},
+    {"r3k2r/8/8/8/8/8/8/R3K2R b KQkq a6 0 7", "e8c8", true, true, false, false},
+    {"r3k2r/8/8/8/8/8/8/R3K2R w KQkq a6 0 7", "e1f1", false, false, true, true},
+    {"r3k2r/8/8/8/8/8/8/R3K2R w KQkq a6 0 7", "h1h2", false, true, true, true},
+    {"r3k2r/8/8/8/8/8/8/R3K2R w KQkq a6 0 7", "a1b1", true, false, true, true},
+    {"r3k2r/8/8/8/8/8/8/R3K2R b KQkq a6 0 7", "e8e7", true, true, false, false},
+    {"r3k2r/8/8/8/8/8/8/R3K2R b KQkq a6 0 7", "a8a5", true, true, true, false},
+    {"r3k2r/8/8/8/8/8/8/R3K2R b KQkq a6 0 7", "h8f8", true, true, false, true},
+    {"r3k2r/8/8/8/8/5Q2/8/R3K2R w KQkq a6 0 7", "f3f4", true, true, true, true},
+    {"r3k2r/p7/8/8/8/8/8/R3K2R b KQkq a3 0 7", "a7a5", true, true, true, true},
+    {"r3k2r/8/8/8/3R4/8/8/R3K2R w KQkq a6 0 7", "d4e4", true, true, true, true}
+  };
+
+  for (const auto&[fen, move, K, Q, k, q]: cases) {
+    Board board(fen);
+    MoveCalculator::ApplyMoveOnBoard(board, SerializedMoveFromString(move));
+    VERIFY_EQUALS(board.CanCastle(Castling::K), K) << "failed for fen " << fen;
+    VERIFY_EQUALS(board.CanCastle(Castling::Q), Q) << "failed for fen " << fen;
+    VERIFY_EQUALS(board.CanCastle(Castling::k), k) << "failed for fen " << fen;
+    VERIFY_EQUALS(board.CanCastle(Castling::q), q) << "failed for fen " << fen;
+  }
+  TEST_END
+}
+
+TEST_PROCEDURE(MoveCalculator_side_to_move_after_move) {
+  TEST_START
+  std::vector<std::string> fens = {
+    "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+    "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq - 0 1",
+    "2k4r/8/7b/8/1Pp5/8/4K3/7q b - b3 0 1",
+    "r3k2r/8/8/8/8/8/8/R3K2R w KQkq b3 0 1",
+    "r3k2r/8/8/8/8/8/8/R3K2R b KQkq b3 0 1"
+  };
+
+  MoveCalculator calculator;
+
+  for (const auto& fen: fens) {
+    Board board(fen);
+    const bool expected_side_to_move = !board.WhiteToMove();
+    auto moves = calculator.CalculateAllMoves(fen);
+    for (const auto& move: moves) {
+      Board b(fen);
+      MoveCalculator::ApplyMoveOnBoard(b, move);
+      VERIFY_EQUALS(b.WhiteToMove(), expected_side_to_move) << "failed for fen \"" << fen << "\" and move " << move;
     }
   }
   TEST_END
@@ -611,7 +515,7 @@ TEST_PROCEDURE(MoveCalculator_apply_move) {
     {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", "e2e4", 0x0,
      "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1"},
     {"8/3k4/6p1/5P2/8/8/5K2/8 b - - 0 1", "g6f5", 'P', "8/3k4/8/5p2/8/8/5K2/8 w - - 0 2"},
-    {"8/3k4/8/1pP5/8/8/5K2/8 w - b6 0 1", "c5b6", 'e', "8/3k4/1P6/8/8/8/5K2/8 b - - 0 1"},
+    {"8/3k4/8/1pP5/8/8/5K2/8 w - b6 0 1", "c5b6", 'E', "8/3k4/1P6/8/8/8/5K2/8 b - - 0 1"},
     {"8/3k2p1/8/8/8/8/5K2/8 b - b3 5 76", "g7g5", 0x0, "8/3k4/8/6p1/8/8/5K2/8 w - g6 0 77"}
   };
 
@@ -619,12 +523,38 @@ TEST_PROCEDURE(MoveCalculator_apply_move) {
 
   for (const auto& [initial_fen, move_str, expected_captured_figure, expected_fen]: cases) {
     Board board(initial_fen);
+    const auto en_passant_target_square = board.EnPassantTargetSquare();
+    const unsigned halfmove_clock = board.HalfMoveClock();
     SerializedMove move = SerializedMoveFromString(move_str);
-    VERIFY_EQUALS(calculator.ApplyMoveOnBoard(board, move), expected_captured_figure)
-      << "failed for fen " << initial_fen << " and move " << move_str;
+    const auto data = calculator.ApplyMoveOnBoard(board, move);
+    VERIFY_EQUALS(data.captured_figure, expected_captured_figure)
+        << "failed for fen " << initial_fen << " and move " << move_str;
+    VERIFY_EQUALS(data.move.data, move.data) << "failed for fen " << initial_fen << " and move " << move_str;
+    VERIFY_EQUALS(data.en_passant_target_square, en_passant_target_square)
+        << "failed for fen " << initial_fen << " and move " << move_str;
+    VERIFY_EQUALS(data.halfmove_clock, halfmove_clock)
+        << "failed for fen " << initial_fen << " and move " << move_str;
     VERIFY_EQUALS(board.CreateFEN(), expected_fen);
+  }
+  TEST_END
+}
 
+TEST_PROCEDURE(MoveCalculator_revert_move) {
+  TEST_START
+  const std::vector<std::string> fens = {
+    "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+  };
 
+  MoveCalculator calculator;
+
+  for (const auto& fen: fens) {
+    const auto& moves = calculator.CalculateAllMoves(fen);
+    for (const auto& move: moves) {
+      Board board(fen);
+      const auto& data = MoveCalculator::ApplyMoveOnBoard(board, move);
+      MoveCalculator::RevertMoveOnBoard(board, data);
+      VERIFY_EQUALS(fen, board.CreateFEN()) << "failed for fen " << fen << " and move " << move;
+    }
   }
   TEST_END
 }

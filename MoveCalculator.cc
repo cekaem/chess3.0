@@ -172,8 +172,21 @@ void MoveCalculator::UpdateEnPassantTargetSquare(Board& board, char figure, size
 }
 
 void MoveCalculator::RevertMoveOnBoard(Board& board,
-                                       const SerializedMove& serialized_move,
-                                       char captured_figure) {
+                                       const RevertMoveData& data) {
+  const Move move = data.move.ToMove();
+  board.ChangeSideToMove();
+  const bool white_to_move = board.WhiteToMove();
+  board.at(move.old_square) = board.at(move.new_square);
+  if (data.captured_figure == 'E') {
+    if (white_to_move) {
+      board.at(move.new_square.x, 5u) = 'p';
+    } else {
+      board.at(move.new_square.x, 4u) = 'P';
+    }
+  }
+  board.SetEnPassantTargetSquare(data.en_passant_target_square);
+  board.SetHalfMoveClock(data.halfmove_clock);
+  board.at(move.new_square) = data.captured_figure;
 }
 
 Castling MoveCalculator::IsMoveCastling(const Board& board,
@@ -219,7 +232,7 @@ void MoveCalculator::MaybeUpdateRookPositionAfterCastling(
   }
 }
 
-char MoveCalculator::ApplyMoveOnBoard(Board& board, const SerializedMove& serialized_move) {
+RevertMoveData MoveCalculator::ApplyMoveOnBoard(Board& board, const SerializedMove& serialized_move) {
   Move move = serialized_move.ToMove();
   const char figure = board.at(move.old_square.x, move.old_square.y);
   char captured_figure = board.at(move.new_square.x, move.new_square.y);
@@ -236,7 +249,7 @@ char MoveCalculator::ApplyMoveOnBoard(Board& board, const SerializedMove& serial
   board.at(move.old_square.x, move.old_square.y) = 0x0;
   board.at(move.new_square.x, move.new_square.y) = figure;
   if (en_passant_capture) {
-    captured_figure = white_to_move ? 'e' : 'E';
+    captured_figure = 'E';
     const size_t captured_pawn_y = white_to_move ? 4u : 3u;
     board.at(en_passant_target_square.x, captured_pawn_y) = 0x0;
   }
@@ -251,6 +264,7 @@ char MoveCalculator::ApplyMoveOnBoard(Board& board, const SerializedMove& serial
   if (!white_to_move) {
     board.IncrementFullMoveNumber();
   }
+  const unsigned halfmove_clock = board.HalfMoveClock();
   if (captured_figure || figure == 'P' || figure == 'p') {
     board.ResetHalfMoveClock();
   } else {
@@ -262,7 +276,7 @@ char MoveCalculator::ApplyMoveOnBoard(Board& board, const SerializedMove& serial
     board.at(move.new_square.x, move.new_square.y) =
       white_to_move ? move.promotion_to : tolower(move.promotion_to);
   }
-  return captured_figure;
+  return {serialized_move, captured_figure, en_passant_target_square, halfmove_clock};
 }
 
 void MoveCalculator::MaybeAddMove(size_t old_x, size_t old_y, size_t new_x, size_t new_y, bool promotion) {

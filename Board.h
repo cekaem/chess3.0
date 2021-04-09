@@ -50,6 +50,8 @@ class Board {
   Board& operator=(const Board& board) = delete;
   bool IsKingInCheck(bool white) const;
   char& at(size_t x, size_t y) { return squares_[x][y]; }
+  char& at(const Square& square) { return squares_[square.x][square.y]; }
+  char at(const Square& square) const { return squares_[square.x][square.y]; }
   char at(size_t x, size_t y) const { return squares_[x][y]; }
   char at(const char* square) const;
   bool CanCastle(Castling c) const { return castlings_[static_cast<size_t>(c)]; }
@@ -62,6 +64,7 @@ class Board {
   void IncrementFullMoveNumber() { ++fullmove_number_; }
   void ResetHalfMoveClock() { halfmove_clock_ = 0u; }
   void IncrementHalfMoveClock() { ++halfmove_clock_; }
+  void SetHalfMoveClock(unsigned value) { halfmove_clock_ = value; }
   void UnsetCanCastle(Castling c) { castlings_[static_cast<size_t>(c)] = false; }
   void SetEnPassantTargetSquare(Square s) { en_passant_target_square_ = s; }
   void InvalidateEnPassantTargetSquare() { en_passant_target_square_.Invalidate(); }
