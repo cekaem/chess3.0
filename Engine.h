@@ -25,8 +25,6 @@ class Engine {
     void Evaluate(Board& board);
 
     SerializedMove move;
-    double eval{0};
-    int mate_in{0};
     std::vector<EngineMove> children;
   };
 
@@ -43,14 +41,10 @@ class Engine {
 
   EngineMoves GenerateEngineMovesForBoard(Board& board);
   void GenerateNextDepth(const Board& board, EngineMoves& moves);
-  double FindBestEval(const EngineMoves& moves) const;
-  EngineMoves FindMovesWithEvalInRoot(double eval) const;
-  int CheckForMate(const EngineMoves& moves) const;
-  EngineMoves FindMovesWithMateInInRoot(int mate_in) const;
-  BorderValues GetBorderValuesForChildren(const EngineMove& parent) const;
-  void EvaluateChildrenAndUpdateParent(const Board& board, EngineMoves& parent) const;
-  bool UpdateMoveMovesToMateBasedOnChildren(EngineMove& move, bool white_to_move) const;
+  BorderValues GetBorderValuesForVector(const std::vector<short>& vec) const;
+  short CalculateMovesToMate(std::vector<short> moves_to_mate, bool white_to_move) const;
   void UpdateMoveEvalBasedOnChildren(EngineMove& move) const;
+  short EvaluateChildren(Board& board, EngineMoves& moves) const;
 
   unsigned max_depth_{0u};
   unsigned max_time_{0u};
@@ -58,6 +52,7 @@ class Engine {
   bool playing_white_;
   bool continue_calculations_;
   unsigned nodes_calculated_;
+  mutable Move best_move_;
 };
 
 #endif  // ENGINE_H

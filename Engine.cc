@@ -7,16 +7,21 @@
 
 #include "utils/Timer.h"
 
+#include <iostream>
+
 namespace {
 
+/*
 static double PawnValue = 1.0;
 static double KnightValue = 3.0;
 static double BishopValue = 3.0;
 static double RookValue = 5.0;
 static double QueenValue = 8.0;
+*/
 
 static int BorderValue =  1000;
 
+/*
 // Returns random value from range [0, max).
 size_t GetRandomNumber(size_t max) {
   return rand() % max;
@@ -73,6 +78,7 @@ double EvaluateMove(const Board& board) {
   double result = CalculateFiguresValue(board);
   return result;
 }
+*/
 
 bool IsMate(Board& board) {
   MoveCalculator calculator;
@@ -85,11 +91,6 @@ bool IsMate(Board& board) {
 
 
 Engine::EngineMove::EngineMove(const SerializedMove& m) : move(m) {}
-
-void Engine::EngineMove::Evaluate(Board& board) {
-  eval = EvaluateMove(board);
-  mate_in = IsMate(board) ? (board.WhiteToMove() ? -1 : 1) : 0;
-}
 
 Engine::Engine(unsigned depth) : max_depth_(depth) {
   srand(static_cast<unsigned int>(clock()));
@@ -127,75 +128,29 @@ void Engine::GenerateNextDepth(const Board& board, EngineMoves& moves) {
   }
 }
 
-double Engine::FindBestEval(const EngineMoves& moves) const {
-  double result = playing_white_ ? -1000.0 : 1000.0;
-  for (const auto& move: moves) {
-    if ((playing_white_ && move.eval > result) ||
-        (!playing_white_ && move.eval < result)) {
-      result = move.eval;
-    }
-  }
-  return result;
-}
-
-Engine::EngineMoves Engine::FindMovesWithEvalInRoot(double eval) const {
-  EngineMoves result;
-  for (const auto& move: root_) {
-    if (move.eval == eval) {
-      result.push_back(move);
-    }
-  }
-  return result;
-}
-
-int Engine::CheckForMate(const EngineMoves& moves) const {
-  int result = playing_white_ ? 1000 : -1000;
-  bool mate_found = false;
-  for (const auto& move: moves) {
-    if (!move.mate_in) {
-      continue;
-    }
-    if ((playing_white_ && move.mate_in > 0 && move.mate_in < result) ||
-        (!playing_white_ && move.mate_in < 0 && move.mate_in > result)) {
-      result = move.mate_in;
-      mate_found = true;
-    }
-  }
-  return mate_found ? result : 0;
-}
-
-Engine::EngineMoves Engine::FindMovesWithMateInInRoot(int mate_in) const {
-  EngineMoves result;
-  for (const auto& move: root_) {
-    if (move.mate_in == mate_in) {
-      result.push_back(move);
-    }
-  }
-  return result;
-}
-
-Engine::BorderValues Engine::GetBorderValuesForChildren(const EngineMove& parent) const {
+Engine::BorderValues Engine::GetBorderValuesForVector(
+    const std::vector<short>& vec) const {
   int the_lowest_value = BorderValue;
   int the_biggest_negative_value = -BorderValue;
   int the_biggest_value = -BorderValue;
   int the_lowest_positive_value = BorderValue;
   BorderValues border_values;
-  for (const EngineMove& child: parent.children) {
-    if (child.mate_in == 0) {
+  for (short mate_in: vec) {
+    if (mate_in == 0) {
       border_values.is_zero = true;
-    } else if (child.mate_in < 0) {
-      if (child.mate_in < the_lowest_value) {
-        the_lowest_value = child.mate_in;
+    } else if (mate_in < 0) {
+      if (mate_in < the_lowest_value) {
+        the_lowest_value = mate_in;
       }
-      if (child.mate_in > the_biggest_negative_value) {
-        the_biggest_negative_value = child.mate_in;
+      if (mate_in > the_biggest_negative_value) {
+        the_biggest_negative_value = mate_in;
       }
-    } else if (child.mate_in > 0) {
-      if (child.mate_in > the_biggest_value) {
-        the_biggest_value = child.mate_in;
+    } else if (mate_in > 0) {
+      if (mate_in > the_biggest_value) {
+        the_biggest_value = mate_in;
       }
-      if (child.mate_in < the_lowest_positive_value) {
-        the_lowest_positive_value = child.mate_in;
+      if (mate_in < the_lowest_positive_value) {
+        the_lowest_positive_value = mate_in;
       }
     }
   }
@@ -214,10 +169,11 @@ Engine::BorderValues Engine::GetBorderValuesForChildren(const EngineMove& parent
   return border_values;
 }
 
-bool Engine::UpdateMoveMovesToMateBasedOnChildren(EngineMove& move, bool white_to_move) const {
+short Engine::CalculateMovesToMate(
+    std::vector<short> moves_to_mate, bool white_to_move) const {
   const bool is_my_move = playing_white_ == white_to_move;
-  BorderValues border_values = GetBorderValuesForChildren(move);
-  int result = 0;
+  BorderValues border_values = GetBorderValuesForVector(moves_to_mate);
+  short result = 0;
   if ((playing_white_ && is_my_move) ||
       (!playing_white_ && !is_my_move)) {
     if (border_values.the_lowest_positive_value != BorderValues::NOT_SET) {
@@ -239,30 +195,39 @@ bool Engine::UpdateMoveMovesToMateBasedOnChildren(EngineMove& move, bool white_t
       result = border_values.the_biggest_value;
     }
   }
-  if (result > 0) {
-    move.mate_in = result + 1;
-  } else if (result < 0) {
-    move.mate_in = result - 1;
-  }
-  return result != 0;
+  return result;
 }
 
 void Engine::UpdateMoveEvalBasedOnChildren(EngineMove& move) const {
 }
 
-void Engine::EvaluateChildrenAndUpdateParent(const Board& board, EngineMoves& parent) const {
-  for (auto& move: parent) {
+short Engine::EvaluateChildren(Board& board, EngineMoves& moves) const {
+  if (moves.empty()) {
+    return IsMate(board) ? (board.WhiteToMove() ? -1 : 1) : 0;
+  }
+  std::vector<short> all_moves_to_mate;
+  for (auto& move: moves) {
     Board copy = board.Clone();
     MoveCalculator::ApplyMoveOnBoard(copy, move.move);
-    if (move.children.empty()) {
-      move.Evaluate(copy);
-    } else {
-      EvaluateChildrenAndUpdateParent(copy, move.children);
-      if (!UpdateMoveMovesToMateBasedOnChildren(move, copy.WhiteToMove())) {
-        UpdateMoveEvalBasedOnChildren(move);
+    short moves_to_mate = EvaluateChildren(copy, move.children);
+    all_moves_to_mate.push_back(moves_to_mate);
+  }
+  short result = CalculateMovesToMate(all_moves_to_mate, board.WhiteToMove());
+  if (&moves == &root_) {
+    for (size_t i = 0; i < all_moves_to_mate.size(); ++i) {
+      if (all_moves_to_mate[i] == result) {
+        best_move_ = moves[i].move.ToMove();
+        break;
       }
     }
+    assert(!best_move_.old_square.IsInvalid() && !best_move_.new_square.IsInvalid());
   }
+  if (result > 0) {
+    ++result;
+  } else if (result < 0) {
+    --result;
+  }
+  return result;
 }
 
 Move Engine::CalculateBestMove(Board& board) {
@@ -285,22 +250,15 @@ Move Engine::CalculateBestMove(Board& board) {
     }
     throw NoMovesException(result);
   }
-  for (size_t i = 0; i < max_depth_ - 1; ++i) {
+  for (size_t i = 1; i < max_depth_; ++i) {
+    std::cout << "Genereting depth " << i << std::endl;
     GenerateNextDepth(board, root_);
+    std::cout << "Depth " << i << " generated." << std::endl;
   }
-  EvaluateChildrenAndUpdateParent(board, root_);
-  EngineMoves best_moves;
-  int mate_in = CheckForMate(root_);
-  if (mate_in) {
-    best_moves = FindMovesWithMateInInRoot(mate_in);
-  } else {
-    double best_eval = FindBestEval(root_);
-    best_moves = FindMovesWithEvalInRoot(best_eval);
-  }
-  assert(!best_moves.empty());
-  size_t index = GetRandomNumber(best_moves.size());
+  std::cout << "Going to evaluate." << std::endl;
+  EvaluateChildren(board, root_);
   if (max_time_) {
     timer.stop();
   }
-  return best_moves[index].move.ToMove();
+  return best_move_;
 }

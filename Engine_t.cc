@@ -58,7 +58,6 @@ TEST_PROCEDURE(Engine_exception_is_thrown_when_no_moves) {
   TEST_END
 }
 
-/*
 TEST_PROCEDURE(Engine_finds_mate_in_three) {
   TEST_START
   std::vector<std::tuple<std::string, std::string>> cases = {
@@ -74,7 +73,6 @@ TEST_PROCEDURE(Engine_finds_mate_in_three) {
   }
   TEST_END
 }
-*/
 
 TEST_PROCEDURE(Engine_finds_mate_in_two) {
   TEST_START
