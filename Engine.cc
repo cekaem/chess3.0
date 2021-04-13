@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cstdlib>
 #include <ctime>
+#include <memory>
 
 #include "utils/Timer.h"
 
@@ -92,6 +93,10 @@ bool IsMate(Board& board) {
 
 Engine::EngineMove::EngineMove(const SerializedMove& m) : move(m) {}
 
+Engine::EngineMove::~EngineMove() {
+  delete[] children;
+}
+
 Engine::Engine(unsigned depth) : max_depth_(depth) {
   srand(static_cast<unsigned int>(clock()));
 }
@@ -102,28 +107,35 @@ Engine::Engine(unsigned depth, unsigned time)
   srand(static_cast<unsigned int>(clock()));
 }
 
-Engine::EngineMoves Engine::GenerateEngineMovesForBoard(Board& board) {
-  EngineMoves result;
+Engine::EngineMove* Engine::GenerateEngineMovesForBoard(Board& board, short& size) {
   MoveCalculator calculator;
   auto moves = calculator.CalculateAllMoves(board);
-  for (const auto& move: moves) {
-    result.push_back(EngineMove(move));
+  size = moves.size();
+  if (size == 0) {
+    return nullptr;
   }
-  nodes_calculated_ += result.size();
+  EngineMove* result = new EngineMove[size];
+  for (short i = 0; i < size; ++i) {
+    result[i].move.data = moves[i].data;
+  }
+  nodes_calculated_ += size;
   return result;
 }
 
-void Engine::GenerateNextDepth(const Board& board, EngineMoves& moves) {
+void Engine::GenerateNextDepth(const Board& board, EngineMove* moves, short number_of_children) {
   if (!continue_calculations_) {
     return;
   }
-  for (auto& move: moves) {
+  for (short i = 0; i < number_of_children;  ++i) {
+    EngineMove& move = moves[i];
     Board copy = board.Clone();
     MoveCalculator::ApplyMoveOnBoard(copy, move.move);
-    if (move.children.empty()) {
-      move.children = GenerateEngineMovesForBoard(copy);
+    if (move.number_of_children == 0) {
+      short size;
+      move.children = GenerateEngineMovesForBoard(copy, size);
+      move.number_of_children = size;
     } else {
-      GenerateNextDepth(copy, move.children);
+      GenerateNextDepth(copy, move.children, move.number_of_children);
     }
   }
 }
@@ -201,19 +213,20 @@ short Engine::CalculateMovesToMate(
 void Engine::UpdateMoveEvalBasedOnChildren(EngineMove& move) const {
 }
 
-short Engine::EvaluateChildren(Board& board, EngineMoves& moves) const {
-  if (moves.empty()) {
+short Engine::EvaluateChildren(Board& board, EngineMove* moves, short number_of_children, bool remember_best_move) const {
+  if (number_of_children == 0) {
     return IsMate(board) ? (board.WhiteToMove() ? -1 : 1) : 0;
   }
   std::vector<short> all_moves_to_mate;
-  for (auto& move: moves) {
+  for (short i = 0; i < number_of_children; ++i) {
+    EngineMove& move = moves[i];
     Board copy = board.Clone();
     MoveCalculator::ApplyMoveOnBoard(copy, move.move);
-    short moves_to_mate = EvaluateChildren(copy, move.children);
+    short moves_to_mate = EvaluateChildren(copy, move.children, move.number_of_children, false);
     all_moves_to_mate.push_back(moves_to_mate);
   }
   short result = CalculateMovesToMate(all_moves_to_mate, board.WhiteToMove());
-  if (&moves == &root_) {
+  if (remember_best_move) {
     for (size_t i = 0; i < all_moves_to_mate.size(); ++i) {
       if (all_moves_to_mate[i] == result) {
         best_move_ = moves[i].move.ToMove();
@@ -241,8 +254,11 @@ Move Engine::CalculateBestMove(Board& board) {
     });
   }
   playing_white_ = board.WhiteToMove();
-  root_ = GenerateEngineMovesForBoard(board);
-  if (root_.empty()) {
+  short size;
+  auto root = std::make_unique<EngineMove>();
+  root->children = GenerateEngineMovesForBoard(board, size);
+  root->number_of_children = size;
+  if (root->number_of_children == 0) {
     GameResult result = GameResult::DRAW;
     const bool is_mate = board.IsKingInCheck(board.WhiteToMove());
     if (is_mate) {
@@ -252,11 +268,11 @@ Move Engine::CalculateBestMove(Board& board) {
   }
   for (size_t i = 1; i < max_depth_; ++i) {
     std::cout << "Genereting depth " << i << std::endl;
-    GenerateNextDepth(board, root_);
+    GenerateNextDepth(board, root->children, root->number_of_children);
     std::cout << "Depth " << i << " generated." << std::endl;
   }
   std::cout << "Going to evaluate." << std::endl;
-  EvaluateChildren(board, root_);
+  EvaluateChildren(board, root->children, root->number_of_children, true);
   if (max_time_) {
     timer.stop();
   }

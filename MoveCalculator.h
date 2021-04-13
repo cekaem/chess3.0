@@ -14,6 +14,7 @@ struct Move {
 };
 
 struct SerializedMove {
+  SerializedMove() {}
   SerializedMove(size_t old_x, size_t old_y, size_t new_x, size_t new_y, char promotion);
   Move ToMove() const;
 

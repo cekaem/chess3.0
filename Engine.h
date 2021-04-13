@@ -21,11 +21,13 @@ class Engine {
 
  private:
   struct EngineMove {
+    EngineMove() {}
     EngineMove(const SerializedMove& move);
-    void Evaluate(Board& board);
+    ~EngineMove();
 
     SerializedMove move;
-    std::vector<EngineMove> children;
+    size_t number_of_children{0};
+    EngineMove* children{nullptr};
   };
 
   struct BorderValues {
@@ -37,18 +39,18 @@ class Engine {
     int the_lowest_positive_value{NOT_SET};
   };
 
-  using EngineMoves = std::vector<EngineMove>;
-
-  EngineMoves GenerateEngineMovesForBoard(Board& board);
-  void GenerateNextDepth(const Board& board, EngineMoves& moves);
+  EngineMove* GenerateEngineMovesForBoard(Board& board, short& number_of_children);
+  void GenerateNextDepth(const Board& board, EngineMove* moves, short number_of_children);
   BorderValues GetBorderValuesForVector(const std::vector<short>& vec) const;
   short CalculateMovesToMate(std::vector<short> moves_to_mate, bool white_to_move) const;
   void UpdateMoveEvalBasedOnChildren(EngineMove& move) const;
-  short EvaluateChildren(Board& board, EngineMoves& moves) const;
+  short EvaluateChildren(Board& board,
+                         EngineMove* moves,
+                         short number_of_children,
+                         bool remember_best_move) const;
 
   unsigned max_depth_{0u};
   unsigned max_time_{0u};
-  EngineMoves root_;
   bool playing_white_;
   bool continue_calculations_;
   unsigned nodes_calculated_;
