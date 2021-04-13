@@ -26,7 +26,7 @@ class Engine {
     ~EngineMove();
 
     SerializedMove move;
-    size_t number_of_children{0};
+    unsigned short number_of_children{0u};
     EngineMove* children{nullptr};
   };
 
