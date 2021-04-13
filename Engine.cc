@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <chrono>
 #include <cstdlib>
 #include <ctime>
 #include <memory>
@@ -245,6 +246,9 @@ short Engine::EvaluateChildren(Board& board, EngineMove* moves, short number_of_
 
 Move Engine::CalculateBestMove(Board& board) {
   assert(max_depth_ > 0u);
+#ifdef ENGINE_DEBUG
+  auto start_time = std::chrono::steady_clock::now();
+#endif
   continue_calculations_ = true;
   nodes_calculated_ = 0u;
   utils::Timer timer;
@@ -267,12 +271,27 @@ Move Engine::CalculateBestMove(Board& board) {
     throw NoMovesException(result);
   }
   for (size_t i = 1; i < max_depth_; ++i) {
-    std::cout << "Genereting depth " << i << std::endl;
+#ifdef ENGINE_DEBUG
+    std::cout << "Generating depth " << i << std::endl;
+#endif
     GenerateNextDepth(board, root->children, root->number_of_children);
+#ifdef ENGINE_DEBUG
     std::cout << "Depth " << i << " generated." << std::endl;
+#endif
   }
-  std::cout << "Going to evaluate." << std::endl;
+#ifdef ENGINE_DEBUG
+  auto mid_time = std::chrono::steady_clock::now();
+  auto time_elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+      mid_time - start_time).count();
+  std::cout << "Going to evaluate. Time spent on generating moves: " << time_elapsed << "ms" << std::endl;
+#endif
   EvaluateChildren(board, root->children, root->number_of_children, true);
+#ifdef ENGINE_DEBUG
+  auto end_time = std::chrono::steady_clock::now();
+  time_elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+      end_time - mid_time).count();
+  std::cout << "Time spent on moves evaluation: " << time_elapsed << "ms" << std::endl;
+#endif
   if (max_time_) {
     timer.stop();
   }
