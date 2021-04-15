@@ -1,8 +1,43 @@
 #include "Board.h"
 
+#include <cassert>
 #include <sstream>
 
 #include "utils/Utils.h"
+
+size_t FigureCharToInt(char f) {
+  Figure figure = Figure::LAST;
+  switch (f) {
+    case 'Q':
+      figure = Figure::Q;
+      break;
+    case 'q':
+      figure = Figure::q;
+      break;
+    case 'R':
+      figure = Figure::R;
+      break;
+    case 'r':
+      figure = Figure::r;
+      break;
+    case 'B':
+      figure = Figure::B;
+      break;
+    case 'b':
+      figure = Figure::b;
+      break;
+    case 'K':
+      figure = Figure::K;
+      break;
+    case 'k':
+      figure = Figure::k;
+      break;
+    default:
+      assert(!"Unkown char");
+      break;
+  }
+  return static_cast<size_t>(figure);
+}
 
 Square::Square(const std::string& square) {
   x = square[0] - 'a';
@@ -39,14 +74,38 @@ bool operator==(const Board& b1, const Board& b2) {
       }
     }
   }
-  return b1.WhiteToMove() == b2.WhiteToMove() &&
-         b1.HalfMoveClock() == b2.HalfMoveClock() &&
-         b1.FullMoveNumber() == b2.FullMoveNumber() &&
-         b1.EnPassantTargetSquare() == b2.EnPassantTargetSquare() &&
-         b1.CanCastle(Castling::Q) == b2.CanCastle(Castling::Q) &&
-         b1.CanCastle(Castling::K) == b2.CanCastle(Castling::K) &&
-         b1.CanCastle(Castling::q) == b2.CanCastle(Castling::q) &&
-         b1.CanCastle(Castling::k) == b2.CanCastle(Castling::k);
+  bool result =
+      b1.WhiteToMove() == b2.WhiteToMove() &&
+      b1.HalfMoveClock() == b2.HalfMoveClock() &&
+      b1.FullMoveNumber() == b2.FullMoveNumber() &&
+      b1.EnPassantTargetSquare() == b2.EnPassantTargetSquare() &&
+      b1.CanCastle(Castling::Q) == b2.CanCastle(Castling::Q) &&
+      b1.CanCastle(Castling::K) == b2.CanCastle(Castling::K) &&
+      b1.CanCastle(Castling::q) == b2.CanCastle(Castling::q) &&
+      b1.CanCastle(Castling::k) == b2.CanCastle(Castling::k);
+  if (!result) {
+    return false;
+  }
+  for (size_t i = 0; i < static_cast<size_t>(Figure::LAST); ++i) {
+    auto fp1 = b1.FiguresPositions(static_cast<Figure>(i));
+    auto fp2 = b2.FiguresPositions(static_cast<Figure>(i));
+    if (fp1.size() != fp2.size()) {
+      return false;
+    }
+    for (auto s1: fp1) {
+      bool found = false;
+      for (auto s2: fp2) {
+        if (s1 == s2) {
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 std::ostream& operator<<(std::ostream& ostr, const Board& board) {
@@ -69,10 +128,9 @@ Board Board::Clone() const {
   clone.white_to_move_ = white_to_move_;
   clone.halfmove_clock_ = halfmove_clock_;
   clone.fullmove_number_ = fullmove_number_;
-  clone.white_king_position_ = white_king_position_;
-  clone.black_king_position_ = black_king_position_;
   clone.en_passant_target_square_ = en_passant_target_square_;
   clone.castlings_ = castlings_;
+  clone.figures_positions_ = figures_positions_;
   return clone;
 }
 
@@ -184,11 +242,11 @@ size_t Board::HandleFields(const std::string& fen) {
     HandleSingleRank(fen, single_rank, 7 - i);
     current_index = new_index + 1;
   }
-  if (white_king_position_.IsInvalid()) {
-    throw InvalidFENException(fen, "No white king found");
+  if (figures_positions_[static_cast<size_t>(Figure::K)].size() != 1u) {
+    throw InvalidFENException(fen, "Must have exact one white king.");
   }
-  if (black_king_position_.IsInvalid()) {
-    throw InvalidFENException(fen, "No black king found");
+  if (figures_positions_[static_cast<size_t>(Figure::k)].size() != 1u) {
+    throw InvalidFENException(fen, "Must have exact one black king.");
   }
   return current_index;
 }
@@ -201,25 +259,33 @@ void Board::HandleSingleRank(const std::string& fen, const std::string& rank_str
   for(const char c: rank_str) {
     if (c >= '1' && c <= '8') {
       file += c - '0';
-    } else if (c == 'q' || c == 'Q' || c == 'K' || c == 'k' || c == 'N' || c == 'n' ||
-               c == 'R' || c == 'r' || c == 'B' || c == 'b' || c == 'P' || c == 'p') {
-      squares_[file][rank] = c;
-      if (c == 'K') {
-        if (!white_king_position_.IsInvalid()) {
-          throw InvalidFENException(fen, "Found two white kings");
-        }
-        white_king_position_.x = file;
-        white_king_position_.y = rank;
-      } else if (c == 'k') {
-        if (!black_king_position_.IsInvalid()) {
-          throw InvalidFENException(fen, "Found two black kings");
-        }
-        black_king_position_.x = file;
-        black_king_position_.y = rank;
-      }
-      ++file;
     } else {
-      throw InvalidFENException(fen, "Invalid char in piece placement section");
+      switch (c) {
+        case 'Q':
+        case 'q':
+        case 'R':
+        case 'r':
+        case 'B':
+        case 'b':
+        case 'K':
+        case 'k':
+          figures_positions_[FigureCharToInt(c)].push_back({file, rank});
+          break;
+        case 'N':
+          ++number_of_white_knights_;
+          break;
+        case 'n':
+          ++number_of_black_knights_;
+          break;
+        case 'P':
+        case 'p':
+          break;
+        default:
+          throw InvalidFENException(fen, "Invalid char in piece placement section");
+          break;
+      }
+      squares_[file][rank] = c;
+      ++file;
     }
     if (file > 8) {
       break;
@@ -230,13 +296,21 @@ void Board::HandleSingleRank(const std::string& fen, const std::string& rank_str
   }
 }
 
+const std::vector<Square>& Board::FiguresPositions(Figure f) const {
+  return figures_positions_[static_cast<size_t>(f)];
+}
+
+unsigned short Board::NumberOfKnights(bool white) const {
+  return white ? number_of_white_knights_ : number_of_black_knights_;
+}
+
 void Board::SetKingPosition(bool white, size_t x, size_t y) {
   if (white) {
-    white_king_position_.x = x;
-    white_king_position_.y = y;
+    figures_positions_[static_cast<size_t>(Figure::K)][0].x = x;
+    figures_positions_[static_cast<size_t>(Figure::K)][0].y = y;
   } else {
-    black_king_position_.x = x;
-    black_king_position_.y = y;
+    figures_positions_[static_cast<size_t>(Figure::k)][0].x = x;
+    figures_positions_[static_cast<size_t>(Figure::k)][0].y = y;
   }
 }
 
@@ -364,7 +438,9 @@ std::string Board::CreateFEN() const {
 }
 
 bool Board::IsKingInCheck(bool white) const {
-  const Square& starting_square = white ? white_king_position_ : black_king_position_;
+  const Square& starting_square = white ?
+      figures_positions_[static_cast<size_t>(Figure::K)][0] :
+      figures_positions_[static_cast<size_t>(Figure::k)][0];
   // First check straight lines.
   if (IsKingInCheckHelper(starting_square, white, 0, 1)) return true;
   if (IsKingInCheckHelper(starting_square, white, 1, 0)) return true;
@@ -404,5 +480,7 @@ char Board::at(const char* square) const {
 }
 
 Square Board::KingPosition(bool white) const {
-  return white ? white_king_position_ : black_king_position_;
+  return white ?
+      figures_positions_[static_cast<size_t>(Figure::K)][0] :
+      figures_positions_[static_cast<size_t>(Figure::k)][0];
 }

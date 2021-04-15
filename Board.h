@@ -4,6 +4,8 @@
 #include <array>
 #include <iostream>
 #include <string>
+#include <vector>
+
 
 struct InvalidFENException {
   InvalidFENException(const std::string& f, const std::string msg)
@@ -13,12 +15,14 @@ struct InvalidFENException {
 };
 
 enum class Castling {
-  K,
-  Q,
-  k,
-  q,
-  LAST
+  K, Q, k, q, LAST
 };
+
+enum class Figure {
+  Q, q, R, r, B, b, K, k, LAST
+};
+
+size_t FigureCharToInt(char f);
 
 struct Square {
   static const unsigned char INVALID = '9';
@@ -70,6 +74,8 @@ class Board {
   void InvalidateEnPassantTargetSquare() { en_passant_target_square_.Invalidate(); }
   void SetKingPosition(bool white, size_t x, size_t y);
   std::string CreateFEN() const;
+  unsigned short NumberOfKnights(bool white) const;
+  const std::vector<Square>& FiguresPositions(Figure f) const;
  
  private:
   Board() {}
@@ -88,13 +94,14 @@ class Board {
   std::string EnPassantTargetSquareToFEN() const;
 
   std::array<std::array<char, 8>, 8> squares_;
-  bool white_to_move_;
-  unsigned short halfmove_clock_;
-  unsigned short fullmove_number_;
-  Square white_king_position_;
-  Square black_king_position_;
+  bool white_to_move_{true};
+  unsigned short halfmove_clock_{0};
+  unsigned short fullmove_number_{0};
   Square en_passant_target_square_;
-  char castlings_;
+  char castlings_{0x0};
+  unsigned short number_of_white_knights_{0};
+  unsigned short number_of_black_knights_{0};
+  std::array<std::vector<Square>, static_cast<size_t>(Figure::LAST)> figures_positions_;
 };
 
 bool operator==(const Board& b1, const Board& b2);

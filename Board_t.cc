@@ -181,6 +181,82 @@ TEST_PROCEDURE(Board_operator_equals) {
   TEST_END
 }
 
+TEST_PROCEDURE(Board_number_of_knights) {
+  TEST_START
+  const std::vector<std::tuple<std::string, unsigned short, unsigned short>> cases = {
+    {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", 2, 2},
+    {"rnbqkb1r/pppppppp/8/8/8/8/PPPPPPPP/R1BQKBNR w KQkq - 0 1", 1, 1},
+    {"r1bqkb1r/pppppppp/8/8/8/8/PPPPPPPP/R1BQKB1R w KQkq - 0 1", 0, 0},
+    {"r1bqkb1r/pppppppp/8/8/8/8/PPPPPPPP/R1BQKBNR w KQkq - 0 1", 1, 0},
+    {"r1bqkbnr/pppppppp/8/8/8/8/PPPPPPPP/R1BQKB1R w KQkq - 0 1", 0, 1},
+    {"7N/8/8/1k6/8/5K1N/8/N7 w - - 0 1", 3, 0},
+    {"1N5n/8/8/1k6/8/5K1n/8/n7 b - - 0 1", 1, 3}
+  };
+
+  for (const auto& [fen, number_of_white_knights, number_of_black_knights]: cases) {
+    Board board(fen);
+    VERIFY_EQUALS(board.NumberOfKnights(true), number_of_white_knights) << " failed for fen " << fen;
+    VERIFY_EQUALS(board.NumberOfKnights(false), number_of_black_knights) << " failed for fen " << fen;
+  }
+  TEST_END
+}
+
+TEST_PROCEDURE(Board_figures_placement) {
+  TEST_START
+  const std::vector<std::tuple<std::string, Figure, size_t, std::string>> cases = {
+    {"8/8/5k2/8/8/4Q3/2K5/8 b - - 0 1", Figure::Q, 1, "e3"},
+    {"Q7/8/5k2/8/8/4Q3/2K5/8 b - - 0 1", Figure::Q, 2, "e3a8"},
+    {"8/8/5k2/8/8/8/2K5/8 b - - 0 1", Figure::Q, 0, ""},
+    {"8/8/5k2/8/8/8/2K5/8 b - - 0 1", Figure::K, 1, "c2"},
+    {"8/8/5k2/8/8/8/2K5/8 b - - 0 1", Figure::k, 1, "f6"},
+    {"8/8/5k2/8/8/8/2K5/8 b - - 0 1", Figure::R, 0, ""},
+    {"8/8/5k2/8/8/8/2K5/8 b - - 0 1", Figure::r, 0, ""},
+    {"8/8/5k2/8/8/8/2K5/8 b - - 0 1", Figure::B, 0, ""},
+    {"8/8/5k2/8/8/8/2K5/8 b - - 0 1", Figure::b, 0, ""},
+    {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", Figure::Q, 1, "d1"},
+    {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", Figure::q, 1, "d8"},
+    {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", Figure::R, 2, "a1h1"},
+    {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", Figure::r, 2, "a8h8"},
+    {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", Figure::B, 2, "c1f1"},
+    {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", Figure::b, 2, "c8f8"},
+    {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", Figure::K, 1, "e1"},
+    {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", Figure::k, 1, "e8"}
+  };
+
+  auto SquaresContainSquare = [](const std::vector<Square> squares, Square square) -> bool {
+    for (Square s: squares) {
+      if (s == square) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  for (const auto&[fen, figure, no, squares]: cases) {
+    Board board(fen);
+    const auto& figure_squares = board.FiguresPositions(figure);
+    VERIFY_EQUALS(figure_squares.size(), no) << "failed for fen " << fen;
+    for (size_t i = 0; i < squares.size(); i += 2) {
+      std::string square = squares.substr(i, 2);
+      VERIFY_TRUE(SquaresContainSquare(figure_squares, {square}))
+        << "failed for fen " << fen << " and square " << square;
+    }
+  }
+  TEST_END
+}
+
+TEST_PROCEDURE(Board_king_position) {
+  TEST_START
+  Board board("8/8/5k2/8/8/4Q3/2K5/8 b - - 0 1");
+  VERIFY_EQUALS(board.KingPosition(true), Square("c2"));
+  VERIFY_EQUALS(board.KingPosition(false), Square("f6"));
+  board.SetKingPosition(true, 0, 1);
+  VERIFY_EQUALS(board.KingPosition(true), Square("a2"));
+  board.SetKingPosition(false, 6, 3);
+  VERIFY_EQUALS(board.KingPosition(false), Square("g4"));
+  TEST_END
+}
+
 TEST_PROCEDURE(Board_clone) {
   TEST_START
   const std::vector<std::string> fens = {

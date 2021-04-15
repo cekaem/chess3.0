@@ -63,6 +63,70 @@ void VERIFY_MOVES(const std::vector<SerializedMove>& moves, const std::string& l
   }
 }
 
+bool VectorsAreEqual(const std::vector<Square>& vec1, const std::vector<Square>& vec2) {
+  if (vec1.size() != vec2.size()) {
+    return false;
+  }
+  for (auto square1: vec1) {
+    bool found = false;
+    for (auto square2: vec2) {
+      if (square1 == square2) {
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      return false;
+    }
+  }
+  return true;
+}
+
+void VERIFY_FIGURES_POSITIONS_ON_BOARD(const Board& board) {
+  std::array<std::vector<Square>, static_cast<size_t>(Figure::LAST)> figures_positions;
+  unsigned short number_of_white_knights = 0;
+  unsigned short number_of_black_knights = 0;
+  for (size_t x = 0; x < 8; ++x) {
+    for (size_t y = 0; y < 8; ++y) {
+      switch (board.at(x, y)) {
+        case 'Q':
+        case 'q':
+        case 'R':
+        case 'r':
+        case 'K':
+        case 'k':
+        case 'B':
+        case 'b':
+          figures_positions[FigureCharToInt(board.at(x, y))].push_back({x, y});
+          break;
+        case 'N':
+          ++number_of_white_knights;
+          break;
+        case 'n':
+          ++number_of_black_knights;
+          break;
+        case 'P':
+        case 'p':
+        case 0x0:
+          break;
+        default:
+          assert(!"Unexpected char.");
+          break;
+      }
+    }
+  }
+
+  for (size_t i = 0; i < static_cast<size_t>(Figure::LAST); ++i) {
+    VERIFY_TRUE(VectorsAreEqual(figures_positions[i],
+                                board.FiguresPositions(static_cast<Figure>(i))))
+        << "failed for fen \"" << board.CreateFEN() << "\" and figure " << i;
+  }
+  VERIFY_EQUALS(number_of_white_knights, board.NumberOfKnights(true))
+      << "failed for fen \"" << board.CreateFEN() << "\"";
+  VERIFY_EQUALS(number_of_black_knights, board.NumberOfKnights(false))
+      << "failed for fen \"" << board.CreateFEN() << "\"";
+}
+
 bool MovesAreEqual(const SerializedMove& serialized_move, const std::string& move_str) {
   COORDINATES_FROM_STRING(move_str);
   const Move move = serialized_move.ToMove();
@@ -516,7 +580,8 @@ TEST_PROCEDURE(MoveCalculator_apply_move) {
      "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1"},
     {"8/3k4/6p1/5P2/8/8/5K2/8 b - - 0 1", "g6f5", "8/3k4/8/5p2/8/8/5K2/8 w - - 0 2"},
     {"8/3k4/8/1pP5/8/8/5K2/8 w - b6 0 1", "c5b6", "8/3k4/1P6/8/8/8/5K2/8 b - - 0 1"},
-    {"8/3k2p1/8/8/8/8/5K2/8 b - b3 5 76", "g7g5", "8/3k4/8/6p1/8/8/5K2/8 w - g6 0 77"}
+    {"8/3k2p1/8/8/8/8/5K2/8 b - b3 5 76", "g7g5", "8/3k4/8/6p1/8/8/5K2/8 w - g6 0 77"},
+    {"8/3k2P1/8/8/8/8/5K2/8 w - - 0 76", "g7g8Q", "6Q1/3k4/8/8/8/8/5K2/8 b - - 0 76"}
   };
 
   for (const auto& [initial_fen, move_str, expected_fen]: cases) {
@@ -524,6 +589,7 @@ TEST_PROCEDURE(MoveCalculator_apply_move) {
     SerializedMove move = SerializedMoveFromString(move_str);
     MoveCalculator::ApplyMoveOnBoard(board, move);
     VERIFY_EQUALS(board.CreateFEN(), expected_fen);
+    VERIFY_FIGURES_POSITIONS_ON_BOARD(board);
   }
   TEST_END
 }

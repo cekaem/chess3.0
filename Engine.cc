@@ -86,7 +86,6 @@ bool IsMate(Board& board) {
   MoveCalculator calculator;
   return calculator.CalculateAllMoves(board).empty() &&
          board.IsKingInCheck(board.WhiteToMove());
-
 }
 
 }  // unnamed namespace
@@ -291,6 +290,7 @@ Move Engine::CalculateBestMove(Board& board) {
   time_elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
       end_time - mid_time).count();
   std::cout << "Time spent on moves evaluation: " << time_elapsed << "ms" << std::endl;
+  std::cout << "Nodes evaluated: " << nodes_calculated_ << std::endl;
 #endif
   if (max_time_) {
     timer.stop();
