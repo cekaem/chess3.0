@@ -75,7 +75,10 @@ class Board {
   void SetKingPosition(bool white, size_t x, size_t y);
   std::string CreateFEN() const;
   unsigned short NumberOfKnights(bool white) const;
+  void IncrementNumberOfKnights(bool white);
+  void DecrementNumberOfKnights(bool white);
   const std::vector<Square>& FiguresPositions(Figure f) const;
+  std::vector<Square>& FiguresPositions(Figure f);
  
  private:
   Board() {}

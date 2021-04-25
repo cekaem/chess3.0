@@ -63,6 +63,7 @@ class MoveCalculator {
   static void MaybeUpdateRookPositionAfterCastling(
       Board& board,
       const Move& serialized_move);
+  static void UpdateFiguresPositionsOnBoard(Board& board, const Move& move);
 
   Board* board_{nullptr};
   std::vector<SerializedMove> moves_;

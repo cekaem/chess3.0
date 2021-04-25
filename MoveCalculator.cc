@@ -1,5 +1,6 @@
 #include "MoveCalculator.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cctype>
 #include <cstdlib>
@@ -230,6 +231,7 @@ void MoveCalculator::ApplyMoveOnBoard(Board& board, const SerializedMove& serial
       en_passant_target_square.x == move.new_square.x &&
       en_passant_target_square.y == move.new_square.y &&
       figure == (white_to_move ? 'P' : 'p');
+  UpdateFiguresPositionsOnBoard(board, move);
   board.at(move.old_square.x, move.old_square.y) = 0x0;
   board.at(move.new_square.x, move.new_square.y) = figure;
   if (en_passant_capture) {
@@ -238,7 +240,6 @@ void MoveCalculator::ApplyMoveOnBoard(Board& board, const SerializedMove& serial
     board.at(en_passant_target_square.x, captured_pawn_y) = 0x0;
   }
   if (figure == 'K' || figure == 'k') {
-    board.SetKingPosition(white_to_move, move.new_square.x, move.new_square.y);
     MaybeUpdateRookPositionAfterCastling(board, move);
   }
 #ifdef _DEBUG_
@@ -260,6 +261,92 @@ void MoveCalculator::ApplyMoveOnBoard(Board& board, const SerializedMove& serial
   if (move.promotion_to) {
     board.at(move.new_square.x, move.new_square.y) =
       white_to_move ? move.promotion_to : tolower(move.promotion_to);
+  }
+}
+
+void MoveCalculator::UpdateFiguresPositionsOnBoard(Board& board, const Move& move) {
+  switch (board.at(move.old_square)) {
+    case 'P':
+    case 'p':
+    case 'N':
+    case 'n':
+      break;
+    case 'Q':
+    case 'q':
+    case 'K':
+    case 'k':
+    case 'R':
+    case 'r':
+    case 'B':
+    case 'b': {
+      Figure figure = static_cast<Figure>(FigureCharToInt(board.at(move.old_square)));
+      auto& vec = board.FiguresPositions(figure);
+      auto iter = std::find(vec.begin(), vec.end(), move.old_square);
+      assert(iter != vec.end());
+      *iter = move.new_square;
+      break;
+    }
+    default:
+      assert(!"Unexpected char");
+  }
+
+  switch (board.at(move.new_square)) {
+    case 0x0:
+    case 'P':
+    case 'p':
+      break;
+    case 'Q':
+    case 'q':
+    case 'R':
+    case 'r':
+    case 'B':
+    case 'b': {
+      Figure figure = static_cast<Figure>(FigureCharToInt(board.at(move.new_square)));
+      auto& vec = board.FiguresPositions(figure);
+      vec.erase(std::remove(vec.begin(), vec.end(), move.new_square), vec.end());
+      break;
+    }
+    case 'N':
+      board.DecrementNumberOfKnights(true);
+      break;
+    case 'n':
+      board.DecrementNumberOfKnights(false);
+      break;
+    case 'K':
+    case 'k':
+      assert(!"King can't be captured");
+      break;
+    default:
+      assert(!"Unexpected char");
+  }
+
+  char promotion_to = move.promotion_to;
+  if (!board.WhiteToMove()) {
+    promotion_to = tolower(promotion_to);
+  }
+  switch (promotion_to) {
+    case 0x0:
+      break;
+    case 'Q':
+    case 'q':
+    case 'R':
+    case 'r':
+    case 'B':
+    case 'b': {
+      Figure figure = static_cast<Figure>(FigureCharToInt(promotion_to));
+      auto& vec = board.FiguresPositions(figure);
+      vec.push_back(move.new_square);
+      break;
+    }
+    case 'N':
+      board.IncrementNumberOfKnights(true);
+      break;
+    case 'n':
+      board.IncrementNumberOfKnights(false);
+      break;
+    default:
+      assert(!"Unexpected char");
+      break;
   }
 }
 

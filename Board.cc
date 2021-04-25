@@ -82,7 +82,9 @@ bool operator==(const Board& b1, const Board& b2) {
       b1.CanCastle(Castling::Q) == b2.CanCastle(Castling::Q) &&
       b1.CanCastle(Castling::K) == b2.CanCastle(Castling::K) &&
       b1.CanCastle(Castling::q) == b2.CanCastle(Castling::q) &&
-      b1.CanCastle(Castling::k) == b2.CanCastle(Castling::k);
+      b1.CanCastle(Castling::k) == b2.CanCastle(Castling::k) &&
+      b1.NumberOfKnights(true) == b2.NumberOfKnights(true) &&
+      b1.NumberOfKnights(false) == b2.NumberOfKnights(false);
   if (!result) {
     return false;
   }
@@ -130,6 +132,8 @@ Board Board::Clone() const {
   clone.fullmove_number_ = fullmove_number_;
   clone.en_passant_target_square_ = en_passant_target_square_;
   clone.castlings_ = castlings_;
+  clone.number_of_white_knights_ = number_of_white_knights_;
+  clone.number_of_black_knights_ = number_of_black_knights_;
   clone.figures_positions_ = figures_positions_;
   return clone;
 }
@@ -300,6 +304,28 @@ const std::vector<Square>& Board::FiguresPositions(Figure f) const {
   return figures_positions_[static_cast<size_t>(f)];
 }
 
+std::vector<Square>& Board::FiguresPositions(Figure f) {
+  return figures_positions_[static_cast<size_t>(f)];
+}
+
+void Board::IncrementNumberOfKnights(bool white) {
+  if (white) {
+    ++number_of_white_knights_;
+  } else {
+    ++number_of_black_knights_;
+  }
+}
+
+void Board::DecrementNumberOfKnights(bool white) {
+  if (white) {
+    assert(number_of_white_knights_ > 0);
+    --number_of_white_knights_;
+  } else {
+    assert(number_of_black_knights_ > 0);
+    --number_of_black_knights_;
+  }
+}
+
 unsigned short Board::NumberOfKnights(bool white) const {
   return white ? number_of_white_knights_ : number_of_black_knights_;
 }
@@ -314,10 +340,10 @@ void Board::SetKingPosition(bool white, size_t x, size_t y) {
   }
 }
 
-bool Board::IsKingInCheckHelper(const Square& starting_square, bool white, int x_offset, int y_offset) const {
+bool Board::IsKingInCheckHelper(const Square& king_square, bool white, int x_offset, int y_offset) const {
   const bool is_diagonal = x_offset != 0 && y_offset != 0;
-  int x = static_cast<int>(starting_square.x);
-  int y = static_cast<int>(starting_square.y);
+  int x = static_cast<int>(king_square.x);
+  int y = static_cast<int>(king_square.y);
   bool first_iteration = true;
   while (1) {
     x += x_offset;
@@ -437,32 +463,39 @@ std::string Board::CreateFEN() const {
   return fen;
 }
 
+/*
+bool Board::FigureChecksKing(const Square& figure_squre, bool white_king) const {
+
+}
+*/
+
 bool Board::IsKingInCheck(bool white) const {
-  const Square& starting_square = white ?
-      figures_positions_[static_cast<size_t>(Figure::K)][0] :
-      figures_positions_[static_cast<size_t>(Figure::k)][0];
+  const Square& king_square = KingPosition(white);
   // First check straight lines.
-  if (IsKingInCheckHelper(starting_square, white, 0, 1)) return true;
-  if (IsKingInCheckHelper(starting_square, white, 1, 0)) return true;
-  if (IsKingInCheckHelper(starting_square, white, 0, -1)) return true;
-  if (IsKingInCheckHelper(starting_square, white, -1, 0)) return true;
+  if (IsKingInCheckHelper(king_square, white, 0, 1)) return true;
+  if (IsKingInCheckHelper(king_square, white, 1, 0)) return true;
+  if (IsKingInCheckHelper(king_square, white, 0, -1)) return true;
+  if (IsKingInCheckHelper(king_square, white, -1, 0)) return true;
   // Now check diagonals.
-  if (IsKingInCheckHelper(starting_square, white, 1, 1)) return true;
-  if (IsKingInCheckHelper(starting_square, white, 1, -1)) return true;
-  if (IsKingInCheckHelper(starting_square, white, -1, 1)) return true;
-  if (IsKingInCheckHelper(starting_square, white, -1, -1)) return true;
+  if (IsKingInCheckHelper(king_square, white, 1, 1)) return true;
+  if (IsKingInCheckHelper(king_square, white, 1, -1)) return true;
+  if (IsKingInCheckHelper(king_square, white, -1, 1)) return true;
+  if (IsKingInCheckHelper(king_square, white, -1, -1)) return true;
   // Check for checks by knight.
-  int x = starting_square.x;
-  int y = starting_square.y;
-  char knight = white ? 'n' : 'N';
-  if (IsFigureAtGivenCoordinates(x + 2, y + 1, knight)) return true;
-  if (IsFigureAtGivenCoordinates(x + 2, y - 1, knight)) return true;
-  if (IsFigureAtGivenCoordinates(x + 1, y - 2, knight)) return true;
-  if (IsFigureAtGivenCoordinates(x - 1, y - 2, knight)) return true;
-  if (IsFigureAtGivenCoordinates(x - 2, y + 1, knight)) return true;
-  if (IsFigureAtGivenCoordinates(x - 2, y - 1, knight)) return true;
-  if (IsFigureAtGivenCoordinates(x + 1, y + 2, knight)) return true;
-  if (IsFigureAtGivenCoordinates(x - 1, y + 2, knight)) return true;
+  int x = king_square.x;
+  int y = king_square.y;
+  if ((white && number_of_black_knights_ > 0) ||
+      (!white && number_of_white_knights_ > 0)) {
+    char knight = white ? 'n' : 'N';
+    if (IsFigureAtGivenCoordinates(x + 2, y + 1, knight)) return true;
+    if (IsFigureAtGivenCoordinates(x + 2, y - 1, knight)) return true;
+    if (IsFigureAtGivenCoordinates(x + 1, y - 2, knight)) return true;
+    if (IsFigureAtGivenCoordinates(x - 1, y - 2, knight)) return true;
+    if (IsFigureAtGivenCoordinates(x - 2, y + 1, knight)) return true;
+    if (IsFigureAtGivenCoordinates(x - 2, y - 1, knight)) return true;
+    if (IsFigureAtGivenCoordinates(x + 1, y + 2, knight)) return true;
+    if (IsFigureAtGivenCoordinates(x - 1, y + 2, knight)) return true;
+  }
   // Now it's time for pawns.
   char pawn = white ? 'p' : 'P';
   int offset = white ? 1 : -1;

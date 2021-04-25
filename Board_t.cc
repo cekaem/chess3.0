@@ -220,7 +220,8 @@ TEST_PROCEDURE(Board_figures_placement) {
     {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", Figure::B, 2, "c1f1"},
     {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", Figure::b, 2, "c8f8"},
     {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", Figure::K, 1, "e1"},
-    {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", Figure::k, 1, "e8"}
+    {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", Figure::k, 1, "e8"},
+    {"8/3k4/6q1/8/8/8/5K2/8 w - - 0 77", Figure::q, 1, "g6"}
   };
 
   auto SquaresContainSquare = [](const std::vector<Square> squares, Square square) -> bool {
